@@ -2,10 +2,9 @@
 pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
-import {NFTStaking} from "../src/NFTStaking.sol";
+import {Rent} from "../../src/rent/Rent.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
-
 import {console} from "forge-std/Test.sol";
 
 contract Deploy is Script {
@@ -33,40 +32,32 @@ contract Deploy is Script {
     function deploy() public returns (address proxy, address logic) {
         Options memory opts;
 
-        logic = Upgrades.deployImplementation("NFTStaking.sol:NFTStaking", opts);
+        logic = Upgrades.deployImplementation("Rent.sol:Rent", opts);
 
+        address stakingProxy = vm.envAddress("STAKING_PROXY");
+        console.log("Staking Proxy Address:", stakingProxy);
+
+        address stateProxy = vm.envAddress("STATE_PROXY");
+        console.log("State Proxy Address:", stateProxy);
 
         address precompileContract = vm.envAddress("PRECOMPILE_CONTRACT");
         console.log("precompileContract Address:", precompileContract);
-
-        address nftContract = vm.envAddress("NFT_CONTRACT");
-        console.log("nftContract Address:", nftContract);
 
         address rewardTokenContract = vm.envAddress("REWARD_TOKEN_CONTRACT");
         console.log("rewardTokenContract Address:", rewardTokenContract);
 
 
-        uint8 phaseLevel = uint8(vm.envUint("PHASE_LEVEL"));
-        console.log("phaseLevel:", phaseLevel);
-
-        address stateProxy = vm.envAddress("STATE_PROXY");
-        console.log("State Proxy Address:", stateProxy);
-
-        address rentProxy = vm.envAddress("RENT_PROXY");
-        console.log("Rent Proxy Address:", rentProxy);
-
         proxy = Upgrades.deployUUPSProxy(
-            "NFTStaking.sol:NFTStaking",
+            "Rent.sol:Rent",
             abi.encodeCall(
-                NFTStaking.initialize,
+                Rent.initialize,
                 (
                     msg.sender,
-                    nftContract,
-                    rewardTokenContract,
                     precompileContract,
-                    stateProxy,
-                    rentProxy,
-                    phaseLevel
+                    rewardTokenContract,
+                    stakingProxy,
+                    address(0x00),
+                    address(0x00)
                 )
             )
         );
