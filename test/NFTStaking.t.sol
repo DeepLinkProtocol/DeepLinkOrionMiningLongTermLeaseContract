@@ -102,7 +102,6 @@ contract StakingTest is Test {
     }
 
     function test_daily_reward() public {
-
         assertEq(staking.getDailyRewardAmount(), 0);
 
         staking.setRewardStartAt(1);
@@ -117,7 +116,6 @@ contract StakingTest is Test {
         string memory machineId2 = "machineId2";
         string memory machineId3 = "machineId3";
 
-
         vm.mockCall(
             precompileContractAddr,
             abi.encodeWithSelector(IPrecompileContract.getOwnerRentEndAt.selector),
@@ -131,7 +129,6 @@ contract StakingTest is Test {
         );
         vm.mockCall(nftAddr, abi.encodeWithSelector(IERC721.transferFrom.selector), abi.encode(true));
         vm.mockCall(nftAddr, abi.encodeWithSelector(IERC721.balanceOf.selector), abi.encode(1));
-
 
         vm.mockCall(
             precompileContractAddr,
@@ -149,7 +146,7 @@ contract StakingTest is Test {
         //        assertEq(topCalcPoints[0], 100);
 
         (NFTStakingState.StakeHolder[] memory topHolders,) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders[0].holder, stakeHolder,"topHolders[0].holder, stakeHolder");
+        assertEq(topHolders[0].holder, stakeHolder, "topHolders[0].holder, stakeHolder");
         assertEq(topHolders[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
 
         assertTrue(staking.isStaking(machineId));
@@ -266,17 +263,17 @@ contract StakingTest is Test {
         staking.stake(machineId3, 10 * 1e18, tokenIds1, 3);
 
         (NFTStakingState.StakeHolder[] memory topHolders1, uint256 total) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders1.length, 2,"topHolders1.length");
-        assertEq(total, 2,"total");
-        assertEq(topHolders1[0].holder, stakeHolder,"topHolders1[0].holder, stakeHolder");
+        assertEq(topHolders1.length, 2, "topHolders1.length");
+        assertEq(total, 2, "total");
+        assertEq(topHolders1[0].holder, stakeHolder, "topHolders1[0].holder, stakeHolder");
         assertEq(topHolders1[0].totalCalcPoint, 300, "top holder calc point 300 failed");
 
         (address holder, uint256 calcPoint, uint256 gpuCount,, uint256 totalReservedAmount,,,) =
             state.stakeHolders(stakeHolder);
 
-        assertEq(holder, stakeHolder,"");
+        assertEq(holder, stakeHolder, "");
         assertEq(calcPoint, 300);
-        assertEq(gpuCount, 2,"gpuCount");
+        assertEq(gpuCount, 2, "gpuCount");
 
         // *****
         assertEq(totalReservedAmount, 10 * 1e18);
@@ -365,9 +362,9 @@ contract StakingTest is Test {
         (NFTStakingState.StakeHolder[] memory topHolders2, uint256 total2) = state.getTopStakeHolders(0, 10);
         assertEq(total2, 2);
         assertEq(topHolders2.length, 2);
-        assertEq(topHolders2[0].holder, stakeHolder,"topHolders2[0].holder, stakeHolder");
+        assertEq(topHolders2[0].holder, stakeHolder, "topHolders2[0].holder, stakeHolder");
         assertEq(topHolders2[0].totalCalcPoint, 200);
-        assertEq(topHolders2[1].holder, stakeHolder2,"topHolders2[1].holder, stakeHolder2");
+        assertEq(topHolders2[1].holder, stakeHolder2, "topHolders2[1].holder, stakeHolder2");
         assertEq(topHolders2[1].totalCalcPoint, 100);
 
         passDays(1);
@@ -474,7 +471,7 @@ contract StakingTest is Test {
         staking.stake(machineId, 0, tokenIds, 1);
 
         (NFTStakingState.StakeHolder[] memory topHolders,) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders[0].holder, stakeHolder,"topHolders[0].holder, stakeHolder");
+        assertEq(topHolders[0].holder, stakeHolder, "topHolders[0].holder, stakeHolder");
         assertEq(topHolders[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
 
         assertTrue(staking.isStaking(machineId));
@@ -512,7 +509,7 @@ contract StakingTest is Test {
         assertGt(reward2, 0, "machineId2 get reward lt 0  failed after staked 1 day");
 
         (NFTStakingState.StakeHolder[] memory topHolders1,) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders1[0].holder, stakeHolder,"topHolders1[0].holder, stakeHolder");
+        assertEq(topHolders1[0].holder, stakeHolder, "topHolders1[0].holder, stakeHolder");
         assertEq(topHolders1[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
 
         assertTrue(staking.isStaking(machineId));
@@ -543,7 +540,7 @@ contract StakingTest is Test {
         (NFTStakingState.StakeHolder[] memory topHolders2,) = state.getTopStakeHolders(0, 10);
         assertEq(topHolders2[0].holder, stakeHolder2);
         assertEq(topHolders2[0].totalCalcPoint, 130);
-        assertEq(topHolders2[1].holder, stakeHolder,"topHolders2[1].holder, stakeHolder");
+        assertEq(topHolders2[1].holder, stakeHolder, "topHolders2[1].holder, stakeHolder");
         assertEq(topHolders2[1].totalCalcPoint, 100);
 
         (NFTStakingState.StakeHolder[] memory topHolders3, uint256 count) = state.getTopStakeHolders(0, 1);
@@ -559,10 +556,10 @@ contract StakingTest is Test {
         uint256 reward4 = reward3 / 2;
         assertGt(reward4, reward2);
 
-        assertEq(rent.machineId2RentedGpuCount(machineId2),1);
+        assertEq(rent.machineId2RentedGpuCount(machineId2), 1);
         vm.prank(stakeHolder2);
         rent.endRentMachine(1);
-        assertEq(rent.machineId2RentedGpuCount(machineId2),0);
+        assertEq(rent.machineId2RentedGpuCount(machineId2), 0);
 
         passDays(1);
 
@@ -618,7 +615,7 @@ contract StakingTest is Test {
         staking.stake(machineId, 0, tokenIds, 1);
 
         (NFTStakingState.StakeHolder[] memory topHolders,) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders[0].holder, stakeHolder,"topHolders[0].holder, stakeHolder");
+        assertEq(topHolders[0].holder, stakeHolder, "topHolders[0].holder, stakeHolder");
         assertEq(topHolders[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
 
         assertTrue(staking.isStaking(machineId));
@@ -656,7 +653,7 @@ contract StakingTest is Test {
         assertGt(reward2, 0, "machineId2 get reward lt 0  failed after staked 1 day");
 
         (NFTStakingState.StakeHolder[] memory topHolders1,) = state.getTopStakeHolders(0, 10);
-        assertEq(topHolders1[0].holder, stakeHolder,"topHolders1[0].holder, stakeHolder" );
+        assertEq(topHolders1[0].holder, stakeHolder, "topHolders1[0].holder, stakeHolder");
         assertEq(topHolders1[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
 
         assertTrue(staking.isStaking(machineId));
@@ -666,7 +663,6 @@ contract StakingTest is Test {
             abi.encodeWithSelector(IPrecompileContract.getDLCMachineRentFee.selector),
             abi.encode(1000 * 1e18)
         );
-
 
         uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
         vm.prank(renter);
@@ -680,7 +676,7 @@ contract StakingTest is Test {
         assertGt(reward4, reward2);
 
         vm.prank(renter);
-        rent.reportMachineFault(1,10000*1e18);
+        rent.reportMachineFault(1, 10000 * 1e18);
         address[] memory admins = new address[](3);
         admins[0] = admin1;
         admins[1] = admin2;
@@ -692,7 +688,7 @@ contract StakingTest is Test {
 
         vm.prank(admin2);
         rent.approveMachineFaultReporting(machineId2);
-        assertEq(staking.getPendingSlashCount(machineId2),1);
+        assertEq(staking.getPendingSlashCount(machineId2), 1);
 
         uint256 renterBalanceBeforeSlash = Token(rewardTokenAddr).balanceOf(renter);
         uint256 holderBalanceBeforeSlashAndClaim = Token(rewardTokenAddr).balanceOf(stakeHolder2);
@@ -700,19 +696,18 @@ contract StakingTest is Test {
         vm.prank(stakeHolder2);
         staking.claim(machineId2);
 
-        console.log("aax",staking.totalReservedAmount());
+        console.log("aax", staking.totalReservedAmount());
 
         uint256 renterBalanceAfterSlash = Token(rewardTokenAddr).balanceOf(renter);
         uint256 holderBalanceAfterSlashAndClaim = Token(rewardTokenAddr).balanceOf(stakeHolder2);
 
-        assertEq(renterBalanceAfterSlash - renterBalanceBeforeSlash, staking.BASE_RESERVE_AMOUNT(), "slash amount failed");
-        assertGt(holderBalanceAfterSlashAndClaim,holderBalanceBeforeSlashAndClaim);
-        (,,,uint256 _totalReservedAmount,,,,) =
-                            state.stakeHolders(stakeHolder);
-        assertEq(_totalReservedAmount, 0,"holder reserved amount failed");
+        assertEq(
+            renterBalanceAfterSlash - renterBalanceBeforeSlash, staking.BASE_RESERVE_AMOUNT(), "slash amount failed"
+        );
+        assertGt(holderBalanceAfterSlashAndClaim, holderBalanceBeforeSlashAndClaim);
+        (,,, uint256 _totalReservedAmount,,,,) = state.stakeHolders(stakeHolder);
+        assertEq(_totalReservedAmount, 0, "holder reserved amount failed");
 
-        // ???
-        assertEq(staking.totalReservedAmount(),0,"reserved amount failed");
+        assertEq(staking.totalReservedAmount(), 0, "reserved amount failed");
     }
-
 }

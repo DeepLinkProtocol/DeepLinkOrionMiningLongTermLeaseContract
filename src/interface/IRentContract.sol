@@ -5,5 +5,5 @@ interface IRentContract {
 
     function getTotalRentedGPUCount(uint256 phaseLevel) external view returns (uint256);
 
-    function isRented(string calldata machineId)  view external returns (bool);
+    function isRented(string calldata machineId) external view returns (bool);
 }

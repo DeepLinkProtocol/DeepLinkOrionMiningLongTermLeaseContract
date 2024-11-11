@@ -19,8 +19,6 @@ contract Upgrade is Script {
             deployerPrivateKey = uint256(vm.envBytes32("PRIVATE_KEY"));
         }
 
-
-
         vm.startBroadcast(deployerPrivateKey);
 
         address rentProxy = vm.envAddress("RENT_PROXY");

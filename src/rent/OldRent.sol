@@ -226,15 +226,15 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getDLCMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
-    public
-    view
-    returns (uint256)
+        public
+        view
+        returns (uint256)
     {
         return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
 
     function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
-    external
+        external
     {
         uint256 rentDuration = rentBlockNumbers * SECONDS_PER_BLOCK;
         require(rentDuration > 0, "rent duration should be greater than 0");
@@ -272,7 +272,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         user2RentIds[msg.sender].push(nextRentId);
 
         // burn rent fee
-        feeToken.burnFrom(msg.sender,rentFeeInFact);
+        feeToken.burnFrom(msg.sender, rentFeeInFact);
         emit BurnedFee(machineId, nextRentId, block.timestamp, rentFeeInFact, msg.sender, gpuCount);
 
         // add machine burn info
@@ -471,8 +471,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return stakingType2totalRentedGPUCount[StakingType.commonStaking];
     }
 
-    function isRented(string calldata machineId)  view external returns (bool){
+    function isRented(string calldata machineId) external view returns (bool) {
         return machineId2RentedGpuCount[machineId] > 0;
     }
-
 }

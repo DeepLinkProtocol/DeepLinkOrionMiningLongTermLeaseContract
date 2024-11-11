@@ -49,7 +49,7 @@ contract Deploy is Script {
         proxy = Upgrades.deployUUPSProxy(
             "NFTStakingState.sol:NFTStakingState",
             abi.encodeCall(
-                NFTStakingState.initialize, (msg.sender, precompileContract,rentProxy, stakingProxy, phaseLevel)
+                NFTStakingState.initialize, (msg.sender, precompileContract, rentProxy, stakingProxy, phaseLevel)
             )
         );
         return (proxy, logic);

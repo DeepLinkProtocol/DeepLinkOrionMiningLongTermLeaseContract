@@ -79,7 +79,13 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         _;
     }
 
-    function initialize(address _initialOwner, address _precompileContract, address _rentContract, address _stakingContract, uint8 _phase_level) public initializer {
+    function initialize(
+        address _initialOwner,
+        address _precompileContract,
+        address _rentContract,
+        address _stakingContract,
+        uint8 _phase_level
+    ) public initializer {
         __Ownable_init(_initialOwner);
         __UUPSUpgradeable_init();
 
@@ -97,7 +103,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         if (phaseLevel == 3) {
             rewardStartGPUThreshold = 2000;
         }
-
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
@@ -146,8 +151,8 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
     }
 
     function addRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
-    external
-    onlyNftStakingAddress
+        external
+        onlyNftStakingAddress
     {
         StakeHolderInfo storage stakeHolderInfo = stakeHolders[_holder];
 
@@ -161,8 +166,8 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
     }
 
     function SubRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
-    external
-    onlyNftStakingAddress
+        external
+        onlyNftStakingAddress
     {
         StakeHolderInfo storage stakeHolderInfo = stakeHolders[_holder];
 
@@ -178,8 +183,8 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
     }
 
     function addReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount)
-    external
-    onlyNftStakingAddress
+        external
+        onlyNftStakingAddress
     {
         StakeHolderInfo storage stakeHolderInfo = stakeHolders[_holder];
 
@@ -227,7 +232,7 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
             stakeHolderInfo.holder = _holder;
         }
 
-        if (isAdd){
+        if (isAdd) {
             machineIds.push(_machineId);
             uint256 stakedMachineCount = address2MachineCount[_holder];
             if (stakedMachineCount == 0) {
@@ -244,7 +249,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
 
         MachineInfo memory previousMachineInfo = stakeHolderInfo.machineId2Info[_machineId];
         stakeHolderInfo.machineId2Info[_machineId].calcPoint = _calcPoint;
-
 
         if (previousMachineInfo.calcPoint == 0) {
             stakeHolderInfo.machineIds.push(_machineId);
@@ -326,9 +330,9 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
     }
 
     function getTopStakeHolders(uint256 offset, uint256 limit)
-    external
-    view
-    returns (StakeHolder[] memory, uint256 total)
+        external
+        view
+        returns (StakeHolder[] memory, uint256 total)
     {
         uint256 totalItems = topStakeHolders.length;
 
@@ -433,34 +437,34 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         return rentContract.getTotalBurnedRentFee(phaseLevel);
     }
 
-    function getTotalGPUCountInStaking() public view returns (uint256){
+    function getTotalGPUCountInStaking() public view returns (uint256) {
         return stakingContract.getTotalGPUCountInStaking();
     }
 
-    function getLeftGPUCountToStartReward() public view returns (uint256){
+    function getLeftGPUCountToStartReward() public view returns (uint256) {
         return stakingContract.getLeftGPUCountToStartReward();
     }
 
     function getStateSummary() public view returns (StateSummary memory) {
         uint256 totalGPUCount = stakingContract.getTotalGPUCountInStaking();
-        uint256 _leftGPUCountBeforeRewardStart = totalGPUCount < rewardStartGPUThreshold? rewardStartGPUThreshold - totalGPUCount : 0;
+        uint256 _leftGPUCountBeforeRewardStart =
+            totalGPUCount < rewardStartGPUThreshold ? rewardStartGPUThreshold - totalGPUCount : 0;
         (uint256 totalCalcPoint, uint256 totalReservedAmount) = stakingContract.getTotalCalcPointAndReservedAmount();
 
         return StateSummary({
             totalCalcPoint: totalCalcPoint,
             totalGPUCount: totalGPUCount,
             totalCalcPointPoolCount: addressCountInStaking,
-            totalRentedGPUCount:rentContract.getTotalRentedGPUCount(phaseLevel),
+            totalRentedGPUCount: rentContract.getTotalRentedGPUCount(phaseLevel),
             totalBurnedRentFee: rentContract.getTotalBurnedRentFee(phaseLevel),
             totalReservedAmount: totalReservedAmount,
             leftGPUCountBeforeRewardStart: _leftGPUCountBeforeRewardStart
         });
     }
 
-    function isRented(string calldata machineId)  view external returns (bool){
+    function isRented(string calldata machineId) external view returns (bool) {
         return rentContract.isRented(machineId);
     }
-
 
     function version() external pure returns (uint256) {
         return 5;
