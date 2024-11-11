@@ -119,10 +119,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         revert("Element not found");
     }
 
-    function getRentedGPUCountOfStakeHolder(address _holder) public view returns (uint256) {
-        return rentContract.getRentedGPUCountOfStakeHolder(phaseLevel, _holder);
-    }
-
     function getMachineCalcPoint(string memory machineId) public view returns (uint256) {
         return precompileContract.getMachineCalcPoint(machineId);
     }
@@ -317,10 +313,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
             totalGpuCount += gpuCount;
         }
         return totalGpuCount;
-    }
-
-    function getBurnedRentFeeOfStakeHolder(uint8 _phaseLevel, address _holder) external view returns (uint256) {
-        return rentContract.getBurnedRentFeeByStakeholder(_phaseLevel, _holder);
     }
 
     function getCalcPointOfStakeHolders(address _holder) external view returns (uint256) {

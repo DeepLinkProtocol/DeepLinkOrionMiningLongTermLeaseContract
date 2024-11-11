@@ -6,17 +6,16 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "../interface/IPrecompileContract.sol";
 import "../interface/IRentContract.sol";
-import "forge-std/console.sol";
 import "../interface/IStakingContract.sol";
 
 /// @custom:oz-upgrades-from OldNFTStakingState
 contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     IPrecompileContract public precompileContract;
     IRentContract public rentContract;
+    IStakingContract public stakingContract;
 
     uint8 public phaseLevel;
     uint256 public rewardStartGPUThreshold;
-    IStakingContract public stakingContract;
 
     string[] public machineIds;
     uint256 public addressCountInStaking;
@@ -122,10 +121,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             }
         }
         revert("Element not found");
-    }
-
-    function getRentedGPUCountOfStakeHolder(address _holder) public view returns (uint256) {
-        return rentContract.getRentedGPUCountOfStakeHolder(phaseLevel, _holder);
     }
 
     function getMachineCalcPoint(string memory machineId) public view returns (uint256) {
@@ -306,7 +301,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         } else {
             topStakeHolders.push(SimpleStakeHolder(_holder, newCalcPoint));
             index = topStakeHolders.length - 1;
-            console.log("_holder1", _holder);
         }
     }
 
@@ -322,10 +316,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             totalGpuCount += gpuCount;
         }
         return totalGpuCount;
-    }
-
-    function getBurnedRentFeeOfStakeHolder(uint8 _phaseLevel, address _holder) external view returns (uint256) {
-        return rentContract.getBurnedRentFeeByStakeholder(_phaseLevel, _holder);
     }
 
     function getCalcPointOfStakeHolders(address _holder) external view returns (uint256) {
@@ -374,7 +364,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             result[i] = StakeHolder({
                 holder: simpleHolder.holder,
                 totalCalcPoint: simpleHolder.totalCalcPoint,
-                totalGPUCount: stakeHolderInfo.totalCalcPoint,
+                totalGPUCount: stakeHolderInfo.totalGPUCount,
                 totalReservedAmount: stakeHolderInfo.totalReservedAmount,
                 rentedGPUCount: stakeHolderInfo.rentedGPUCount,
                 burnedRentFee: stakeHolderInfo.burnedRentFee,

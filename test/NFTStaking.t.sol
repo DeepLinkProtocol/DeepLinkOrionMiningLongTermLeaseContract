@@ -271,7 +271,7 @@ contract StakingTest is Test {
         assertEq(topHolders1[0].holder, stakeHolder,"topHolders1[0].holder, stakeHolder");
         assertEq(topHolders1[0].totalCalcPoint, 300, "top holder calc point 300 failed");
 
-        (address holder, uint256 calcPoint, uint256 gpuCount,uint256 rentedGPUCount, uint256 totalReservedAmount,,,) =
+        (address holder, uint256 calcPoint, uint256 gpuCount,, uint256 totalReservedAmount,,,) =
             state.stakeHolders(stakeHolder);
 
         assertEq(holder, stakeHolder,"");
@@ -519,7 +519,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getDlcMachineRentFee.selector),
+            abi.encodeWithSelector(IPrecompileContract.getDLCMachineRentFee.selector),
             abi.encode(1000 * 1e18)
         );
 
@@ -663,7 +663,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getDlcMachineRentFee.selector),
+            abi.encodeWithSelector(IPrecompileContract.getDLCMachineRentFee.selector),
             abi.encode(1000 * 1e18)
         );
 
@@ -707,7 +707,7 @@ contract StakingTest is Test {
 
         assertEq(renterBalanceAfterSlash - renterBalanceBeforeSlash, staking.BASE_RESERVE_AMOUNT(), "slash amount failed");
         assertGt(holderBalanceAfterSlashAndClaim,holderBalanceBeforeSlashAndClaim);
-        (address holder, uint256 calcPoint, uint256 gpuCount,uint256 _totalReservedAmount,,,,) =
+        (,,,uint256 _totalReservedAmount,,,,) =
                             state.stakeHolders(stakeHolder);
         assertEq(_totalReservedAmount, 0,"holder reserved amount failed");
 

@@ -8,10 +8,7 @@ interface IPrecompileContract {
 
     function getOwnerRentEndAt(string memory machineId,uint256 rentId) external view returns (uint256);
 
-    function getDlcMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint8 rentGpuNumbers)
-        external
-        view
-        returns (uint256);
+    function getDLCMachineRentFee(string memory machineId,uint256 rentBlocks,uint256 rentGpuCount) external view returns (uint256);
 
     function isMachineOwner(string memory machineId,address evmAddress) external view returns (bool);
 }

@@ -225,12 +225,12 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return nextRentId;
     }
 
-    function getDLCMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint8 rentGpuNumbers)
+    function getDLCMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
     public
     view
     returns (uint256)
     {
-        return precompileContract.getDlcMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
+        return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
 
     function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
@@ -256,7 +256,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint8 rentedGpuCount = machineId2RentedGpuCount[machineId];
         require(rentedGpuCount + gpuCount <= precompileContract.getMachineGPUCount(machineId), "gpu count not enough");
 
-        uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, gpuCount);
+        uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, uint256(gpuCount));
         require(rentFee >= rentFeeInFact, "rent fee not enough");
         machineId2RentedGpuCount[machineId] += gpuCount;
 

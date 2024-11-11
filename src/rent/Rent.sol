@@ -8,25 +8,35 @@ import "../interface/IPrecompileContract.sol";
 import "../interface/IStakingContract.sol";
 import "../interface/IRewardToken.sol";
 import "../interface/IRentContract.sol";
-import "forge-std/console.sol";
 
 /// @custom:oz-upgrades-from OldRent
 contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    IRewardToken public feeToken;
-
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant REPORT_RESERVE_AMOUNT = 10000 * 1e18;
 
+    IRewardToken public feeToken;
     IPrecompileContract public precompileContract;
-    //    IStakingContract[] public stakingContracts;
 
     IStakingContract public phaseOneOrionStakingContract;
     IStakingContract public phaseTwoOrionStakingContract;
     IStakingContract public phaseThreeOrionStakingContract;
 
+    IStakingContract public currentStakingContract;
+
+    enum StakingType {
+        phaseOne,
+        phaseTwo,
+        phaseThree,
+        commonStaking,
+        Unknown
+    }
+
+    StakingType public currentStakingType;
+
+    uint256 public lastRentId;
+
     mapping(string => address) public machineId2Reporter;
 
-    uint256 public nextRentId;
 
     struct RentInfo {
         string machineId;
@@ -51,17 +61,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     BurnedSummary public burnedSummary;
-
-    enum StakingType {
-        phaseOne,
-        phaseTwo,
-        phaseThree,
-        commonStaking,
-        Unknown
-    }
-
-    StakingType public currentStakingType;
-    IStakingContract public currentStakingContract;
 
     struct BurnedDetail {
         uint256 rentId;
@@ -144,19 +143,16 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         if (_phaseOneOrionStakingContract != address(0x0)) {
             phaseOneOrionStakingContract = IStakingContract(_phaseOneOrionStakingContract);
-            //            stakingContracts.push(phaseOneOrionStakingContract);
             currentStakingType = StakingType.phaseOne;
         }
 
         if (_phaseTwoOrionStakingContract != address(0x0)) {
             phaseTwoOrionStakingContract = IStakingContract(_phaseTwoOrionStakingContract);
-            //            stakingContracts.push(phaseTwoOrionStakingContract);
             currentStakingType = StakingType.phaseTwo;
         }
 
         if (_phaseThreeOrionStakingContract != address(0x0)) {
             phaseThreeOrionStakingContract = IStakingContract(_phaseThreeOrionStakingContract);
-            //            stakingContracts.push(phaseThreeOrionStakingContract);
             currentStakingType = StakingType.phaseThree;
         }
     }
@@ -221,25 +217,26 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getNextRentId() internal returns (uint256) {
-        require(nextRentId < type(uint256).max, "ID overflow");
-        nextRentId += 1; // 自增ID
-        return nextRentId;
+        require(lastRentId < type(uint256).max, "ID overflow");
+        lastRentId += 1;
+        return lastRentId;
     }
 
-    function getDLCMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint8 rentGpuNumbers)
+    function getDLCMachineRentFee(string memory machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
         public
         view
         returns (uint256)
     {
-        return precompileContract.getDlcMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
+        return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
 
     function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
         external
     {
+        require(rentBlockNumbers %  (10 * 30) == 0, "rent duration should be a multiple of 30 minutes");
+
         uint256 rentDuration = rentBlockNumbers * SECONDS_PER_BLOCK;
         require(rentDuration > 0, "rent duration should be greater than 0");
-        require(rentDuration % 60 * 30 == 0, "rent duration should be a multiple of 30 minutes");
 
         //        StakingType stakingType = StakingType.Unknown;
         //        if (phaseOneOrionStakingContract.isStaking(machineId)) {
@@ -252,33 +249,33 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         //            // to common staking
         //        }
         StakingType stakingType = currentStakingType;
-        require(stakingType != StakingType.Unknown, "machine not found");
+        require(currentStakingType != StakingType.Unknown, "machine not found");
 
         uint8 rentedGpuCount = machineId2RentedGpuCount[machineId];
         require(rentedGpuCount + gpuCount <= precompileContract.getMachineGPUCount(machineId), "gpu count not enough");
 
-        uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, gpuCount);
+        uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, uint256(gpuCount));
         require(rentFee >= rentFeeInFact, "rent fee not enough");
         machineId2RentedGpuCount[machineId] += gpuCount;
 
         // save rent info
-        nextRentId = getNextRentId();
-        rentInfos[nextRentId] = RentInfo({
+        lastRentId = getNextRentId();
+        rentInfos[lastRentId] = RentInfo({
             machineId: machineId,
             rentEndTime: block.timestamp + rentDuration,
             gpuCount: gpuCount,
             renter: msg.sender
         });
-        machineId2RentIds[machineId].push(nextRentId);
-        user2RentIds[msg.sender].push(nextRentId);
+        machineId2RentIds[machineId].push(lastRentId);
+        user2RentIds[msg.sender].push(lastRentId);
 
         // burn rent fee
         feeToken.burnFrom(msg.sender,rentFeeInFact);
-        emit BurnedFee(machineId, nextRentId, block.timestamp, rentFeeInFact, msg.sender, gpuCount);
+        emit BurnedFee(machineId, lastRentId, block.timestamp, rentFeeInFact, msg.sender, gpuCount);
 
         // add machine burn info
         BurnedDetail memory burnedDetail = BurnedDetail({
-            rentId: nextRentId,
+            rentId: lastRentId,
             burnTime: block.timestamp,
             burnDLCAmount: rentFeeInFact,
             renter: msg.sender,
@@ -286,7 +283,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         });
 
         address machineHolder = getMachineHolder(machineId);
-        console.log("machine holder: ", machineHolder);
         stakeHolder2RentedGPUCountOfStakingType[currentStakingType][machineHolder] += gpuCount;
         stakingType2totalRentedGPUCount[currentStakingType] += gpuCount;
 
@@ -309,13 +305,13 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         // notify staking contract renting machine action happened
         currentStakingContract.rentMachine(machineId, rentFee, gpuCount);
-        //        for (uint8 i = 0; i < stakingContracts.length; i++) {
-        //            if (address (stakingContracts[i]) != address(0x0)) {
-        //                stakingContracts[i].rentMachine(machineId);
-        //            }
-        //        }
+//                for (uint8 i = 0; i < stakingContracts.length; i++) {
+//                    if (address (stakingContracts[i]) != address(0x0)) {
+//                        stakingContracts[i].rentMachine(machineId);
+//                    }
+//                }
 
-        emit RentMachine(nextRentId, machineId, block.timestamp + rentDuration, gpuCount, msg.sender);
+        emit RentMachine(lastRentId, machineId, block.timestamp + rentDuration, gpuCount, msg.sender);
     }
 
     function endRentMachine(uint256 rentId) external {
@@ -349,6 +345,12 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function getMachineHolder(string memory machineId) internal view returns (address) {
         return currentStakingContract.getMachineHolder(machineId);
     }
+
+
+    function getMachineGPUCount(string memory machineId) external view returns (uint8){
+        return precompileContract.getMachineGPUCount(machineId);
+    }
+
 
     function reportMachineFault(uint256 rentId, uint256 reserveAmount) external {
         require(reserveAmount == REPORT_RESERVE_AMOUNT, "reserve amount should be 10000");

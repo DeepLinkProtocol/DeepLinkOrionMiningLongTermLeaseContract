@@ -10,29 +10,37 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./library/Ln.sol";
 import "./interface/IStateContract.sol";
-import "forge-std/console.sol";
 import "./interface/IRewardToken.sol";
 import "./interface/IRentContract.sol";
 
 /// @custom:oz-upgrades-from OldNFTStaking
 contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+    uint8 public constant SECONDS_PER_BLOCK = 6;
+    uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
+    uint8 public constant MAX_NFTS_PER_MACHINE = 20;
+//    uint256 public constant REWARD_DURATION = 60 days;
+    uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
+    uint256 public constant LOCK_PERIOD = 180 days;
+    uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
+
+    IERC721 public nftToken;
+
     IStateContract public stateContract;
     IPrecompileContract public precompileContract;
-    uint8 public constant SECONDS_PER_BLOCK = 6;
     IRewardToken public rewardToken;
-
-    uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
+    IRentContract public rentContract;
 
     uint256 public totalReservedAmount;
-
     uint256 public totalCalcPoint;
     // uint = calcPoint * ln(reservedAmount)
     uint256 public totalAdjustUnit;
-
     uint256 public dailyRewardAmount;
     uint256 public rewardPerUnit;
-
     uint256 public lastUpdateTime;
+    uint8 public phaseLevel;
+    uint256 public totalGpuCount;
+    uint256 public rewardStartAtBlockNumber;
+    uint256 public rewardStartGPUThreshold;
 
     struct StakeInfo {
         address holder;
@@ -53,8 +61,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
 
     mapping(string => StakeInfo) public machineId2StakeInfos;
 
-    IERC721 public nftToken;
-
     struct LockedRewardDetail {
         uint256 amount;
         uint256 unlockTime;
@@ -62,26 +68,10 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
 
     mapping(string => LockedRewardDetail[]) public machineId2LockedRewardDetails;
 
-    uint8 public constant MAX_NFTS_PER_MACHINE = 20;
-//    uint256 public constant REWARD_DURATION = 60 days;
-        uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
-
-    uint256 public constant LOCK_PERIOD = 180 days;
-    uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
-
-    uint8 public phaseLevel;
-
     struct ApprovedReportInfo {
         address[] renters;
     }
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
-
-
-    IRentContract public rentContract;
-
-    uint256 public totalGpuCount;
-    uint256 public rewardStartAtBlockNumber;
-    uint256 public rewardStartGPUThreshold;
 
     event staked(address indexed stakeholder, string machineId, uint256 stakeAtBlockNumber);
     event unStaked(address indexed stakeholder, string machineId, uint256 unStakeAtBlockNumber);
@@ -203,10 +193,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     }
 
     function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) internal {
-
-        console.log("machineId222",machineId);
-        console.log("reserveAmount",reserveAmount);
-
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
         // update global reward rate
@@ -316,8 +302,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         uint256 calcPoint = getMachineCalcPoint(machineId) * nftTokenIds.length;
         require(calcPoint > 0, "machine calc point not found");
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,rentId);
-        console.log("rentEndAt", rentEndAt);
-        console.log("rewardStartAtBlockNumber", rewardStartAtBlockNumber);
         if (rewardStartAtBlockNumber > 0) {
             require(
                 (rentEndAt - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK >= REWARD_DURATION,
@@ -430,10 +414,10 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         require(rewardStartAtBlockNumber > 0, "reward not start yet");
         require(stakeInfo.holder == stakeholder, "not stakeholder");
-        require(
-            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
-            "last claim less than 1 day"
-        );
+//        require(
+//            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
+//            "last claim less than 1 day"
+//        );
 
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId);
 
@@ -452,32 +436,16 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         uint256 moveToReserveAmount = 0;
         if (canClaimAmount > 0) {
             if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
-                uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
-                if (canClaimAmount >= leftAmountShouldReserve) {
-                    canClaimAmount -= leftAmountShouldReserve;
-                    //                    stakeholder2Reserved[stakeholder] += leftAmountShouldReserve;
-                    moveToReserveAmount = leftAmountShouldReserve;
-                } else {
-                    canClaimAmount = 0;
-                    moveToReserveAmount = canClaimAmount;
-                }
-
-                console.log("moveToReserveAmount0",totalReservedAmount);
-
-                // the amount should be transfer to reserve
-                totalReservedAmount += moveToReserveAmount;
-                console.log("moveToReserveAmount1", totalReservedAmount);
-                stakeInfo.reservedAmount += moveToReserveAmount;
-                rewardToken.mint(address(this), moveToReserveAmount);
-                stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
+                (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) = tryMoveReserve(machineId,canClaimAmount,stakeInfo);
+                canClaimAmount = leftAmountCanClaim;
+                moveToReserveAmount = _moveToReserveAmount;
             }
         }
 
         ApprovedReportInfo[] storage approvedReportInfos = pendingSlashedMachineId2Renters[machineId];
         bool paidSlash = false;
         if (approvedReportInfos.length > 0 && stakeInfo.reservedAmount >= BASE_RESERVE_AMOUNT) {
-            uint256 n = stakeInfo.reservedAmount / BASE_RESERVE_AMOUNT;
-            console.log("666",            rewardToken.balanceOf(address(this)));
+            uint256 n = stakeInfo.reservedAmount / approvedReportInfos.length;
             for(uint8 i = 0; i < n; i++){
                 ApprovedReportInfo memory lastSlashInfo = approvedReportInfos[approvedReportInfos.length - 1];
 
@@ -486,6 +454,12 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
                 approvedReportInfos.pop();
             }
             paidSlash = true;
+        }
+
+        if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
+            (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) = tryMoveReserve(machineId,canClaimAmount,stakeInfo);
+            canClaimAmount = leftAmountCanClaim;
+            moveToReserveAmount = _moveToReserveAmount;
         }
 
         if (canClaimAmount > 0) {
@@ -504,6 +478,25 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         }
 
         emit claimed(stakeholder, machineId, canClaimAmount, moveToReserveAmount, paidSlash);
+    }
+
+    function tryMoveReserve(string memory machineId, uint256 canClaimAmount, StakeInfo storage stakeInfo) internal returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)  {
+        uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
+        if (canClaimAmount >= leftAmountShouldReserve) {
+            canClaimAmount -= leftAmountShouldReserve;
+            moveToReserveAmount = leftAmountShouldReserve;
+        } else {
+            moveToReserveAmount = canClaimAmount;
+            canClaimAmount = 0;
+        }
+
+
+        // the amount should be transfer to reserve
+        totalReservedAmount += moveToReserveAmount;
+        stakeInfo.reservedAmount += moveToReserveAmount;
+        rewardToken.mint(address(this), moveToReserveAmount);
+        stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
+        return (moveToReserveAmount, canClaimAmount);
     }
 
     modifier canClaim(string memory machineId) {
@@ -790,6 +783,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     }
 
     function version() external pure returns (uint256) {
-        return 3;
+        return 1;
     }
 }
