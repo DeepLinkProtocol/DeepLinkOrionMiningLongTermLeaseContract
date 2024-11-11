@@ -304,7 +304,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     external
     nonReentrant
     {
-        require(precompileContract.isMachineOwner(msg.sender), "not machine owner");
+        require(precompileContract.isMachineOwner(machineId,msg.sender), "not machine owner");
         uint256 rewardStart = getRewardStartAt();
         if (rewardStart > 0) {
             require((block.number - rewardStart) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
@@ -316,7 +316,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         require(nftTokenIds.length > 0, "nft token ids is empty");
         uint256 calcPoint = getMachineCalcPoint(machineId) * nftTokenIds.length;
         require(calcPoint > 0, "machine calc point not found");
-        uint256 rentEndAt = precompileContract.getRentEndAt(rentId);
+        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,rentId);
 
         console.log("rentEndAt", rentEndAt);
         console.log("rewardStartAtBlockNumber", rewardStartAtBlockNumber);
@@ -437,7 +437,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
             "last claim less than 1 day"
         );
 
-        uint256 rentEndAt = precompileContract.getRentEndAt(stakeInfo.rentId);
+        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId);
 
         require(rentEndAt > rewardStartAtBlockNumber, "rent end must be greater than reward start");
         require(
@@ -604,7 +604,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     function isStaking(string calldata machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         return stakeInfo.holder != address(0) && stakeInfo.startAtBlockNumber > 0 && stakeInfo.endAtBlockNumber == 0
-            && (precompileContract.getRentEndAt(stakeInfo.rentId) - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK
+            && (precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId) - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK
             >= REWARD_DURATION;
     }
 

@@ -111,6 +111,10 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         precompileContract = IPrecompileContract(_precompileContract);
     }
 
+    function setRentContract(address _rentContract) external onlyOwner {
+        rentContract = IRentContract(_rentContract);
+    }
+
     function findStringIndex(string[] memory arr, string memory v) internal pure returns (uint256) {
         for (uint256 i = 0; i < arr.length; i++) {
             if (keccak256(abi.encodePacked(arr[i])) == keccak256(abi.encodePacked(v))) {

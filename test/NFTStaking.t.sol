@@ -102,11 +102,6 @@ contract StakingTest is Test {
     }
 
     function test_daily_reward() public {
-        vm.mockCall(
-            precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getDlcNftStakingRewardStartAt.selector),
-            abi.encode(0)
-        );
 
         assertEq(staking.getDailyRewardAmount(), 0);
 
@@ -125,7 +120,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getRentEndAt.selector),
+            abi.encodeWithSelector(IPrecompileContract.getOwnerRentEndAt.selector),
             abi.encode(14400 * 65)
         );
 
@@ -299,7 +294,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getRentEndAt.selector),
+            abi.encodeWithSelector(IPrecompileContract.getOwnerRentEndAt.selector),
             abi.encode(14400 * 65)
         );
 
@@ -455,7 +450,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getRentEndAt.selector),
+            abi.encodeWithSelector(IPrecompileContract.getOwnerRentEndAt.selector),
             abi.encode(14400 * 65)
         );
 
@@ -599,7 +594,7 @@ contract StakingTest is Test {
 
         vm.mockCall(
             precompileContractAddr,
-            abi.encodeWithSelector(IPrecompileContract.getRentEndAt.selector),
+            abi.encodeWithSelector(IPrecompileContract.getOwnerRentEndAt.selector),
             abi.encode(14400 * 65)
         );
 

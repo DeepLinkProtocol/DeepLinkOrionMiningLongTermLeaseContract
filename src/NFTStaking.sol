@@ -152,6 +152,10 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         rewardStartAtBlockNumber = 0;
     }
 
+    function setThreshold(uint256 _threshold) external onlyOwner {
+        rewardStartGPUThreshold = _threshold;
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function setPrecompileContract(address _registerContract) external onlyOwner {
@@ -182,7 +186,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     }
 
     function getDailyRewardAmount() public view returns (uint256) {
-        if (getRewardStartAt() > 0) {
+        if (rewardStartAtBlockNumber > 0) {
             return dailyRewardAmount;
         }
         return 0;
@@ -283,10 +287,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         return rewards;
     }
 
-    function getRewardStartAt() public view returns (uint256) {
-        return rewardStartAtBlockNumber;
-    }
-
     function getRewardStartTime() public view returns (uint256) {
         if (rewardStartAtBlockNumber == 0) {
             return 0;
@@ -304,10 +304,9 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         external
         nonReentrant
     {
-        require(precompileContract.isMachineOwner(msg.sender), "not machine owner");
-        uint256 rewardStart = getRewardStartAt();
-        if (rewardStart > 0) {
-            require((block.number - rewardStart) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
+        require(precompileContract.isMachineOwner(machineId,msg.sender), "not machine owner");
+        if (rewardStartAtBlockNumber > 0) {
+            require((block.number - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
         }
 
         address stakeholder = msg.sender;
@@ -316,8 +315,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         require(nftTokenIds.length > 0, "nft token ids is empty");
         uint256 calcPoint = getMachineCalcPoint(machineId) * nftTokenIds.length;
         require(calcPoint > 0, "machine calc point not found");
-        uint256 rentEndAt = precompileContract.getRentEndAt(rentId);
-
+        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,rentId);
         console.log("rentEndAt", rentEndAt);
         console.log("rewardStartAtBlockNumber", rewardStartAtBlockNumber);
         if (rewardStartAtBlockNumber > 0) {
@@ -437,7 +435,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
             "last claim less than 1 day"
         );
 
-        uint256 rentEndAt = precompileContract.getRentEndAt(stakeInfo.rentId);
+        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId);
 
         require(rentEndAt > rewardStartAtBlockNumber, "rent end must be greater than reward start");
         require(
@@ -552,8 +550,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         require(stakeInfo.holder == stakeholder, "not stakeholder");
         require(stakeInfo.startAtBlockNumber > 0, "staking not found");
 
-        uint256 rewardStartAt = getRewardStartAt();
-        if (rewardStartAt > 0) {
+        if (rewardStartAtBlockNumber > 0) {
             require(
                 (block.number - stakeInfo.startAtBlockNumber) * SECONDS_PER_BLOCK > REWARD_DURATION,
                 "staking reward duration not end yet"
@@ -596,6 +593,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         emit unStaked(msg.sender, machineId, currentTime);
     }
 
+
     function getStakeHolder(string calldata machineId) external view returns (address) {
         StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
         return stakeInfo.holder;
@@ -604,7 +602,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     function isStaking(string calldata machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         return stakeInfo.holder != address(0) && stakeInfo.startAtBlockNumber > 0 && stakeInfo.endAtBlockNumber == 0
-            && (precompileContract.getRentEndAt(stakeInfo.rentId) - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK
+            && (precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId) - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK
                 >= REWARD_DURATION;
     }
 
