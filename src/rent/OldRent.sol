@@ -8,24 +8,33 @@ import "../interface/IPrecompileContract.sol";
 import "../interface/IStakingContract.sol";
 import "../interface/IRewardToken.sol";
 import "../interface/IRentContract.sol";
-import "forge-std/console.sol";
 
 contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
-    IRewardToken public feeToken;
-
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant REPORT_RESERVE_AMOUNT = 10000 * 1e18;
 
+    IRewardToken public feeToken;
     IPrecompileContract public precompileContract;
-    //    IStakingContract[] public stakingContracts;
 
     IStakingContract public phaseOneOrionStakingContract;
     IStakingContract public phaseTwoOrionStakingContract;
     IStakingContract public phaseThreeOrionStakingContract;
 
-    mapping(string => address) public machineId2Reporter;
+    IStakingContract public currentStakingContract;
 
-    uint256 public nextRentId;
+    enum StakingType {
+        Unknown,
+        phaseOne,
+        phaseTwo,
+        phaseThree,
+        commonStaking
+    }
+
+    StakingType public currentStakingType;
+
+    uint256 public lastRentId;
+
+    mapping(string => address) public machineId2Reporter;
 
     struct RentInfo {
         string machineId;
@@ -50,17 +59,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     BurnedSummary public burnedSummary;
-
-    enum StakingType {
-        phaseOne,
-        phaseTwo,
-        phaseThree,
-        commonStaking,
-        Unknown
-    }
-
-    StakingType public currentStakingType;
-    IStakingContract public currentStakingContract;
 
     struct BurnedDetail {
         uint256 rentId;
@@ -143,19 +141,16 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         if (_phaseOneOrionStakingContract != address(0x0)) {
             phaseOneOrionStakingContract = IStakingContract(_phaseOneOrionStakingContract);
-            //            stakingContracts.push(phaseOneOrionStakingContract);
             currentStakingType = StakingType.phaseOne;
         }
 
         if (_phaseTwoOrionStakingContract != address(0x0)) {
             phaseTwoOrionStakingContract = IStakingContract(_phaseTwoOrionStakingContract);
-            //            stakingContracts.push(phaseTwoOrionStakingContract);
             currentStakingType = StakingType.phaseTwo;
         }
 
         if (_phaseThreeOrionStakingContract != address(0x0)) {
             phaseThreeOrionStakingContract = IStakingContract(_phaseThreeOrionStakingContract);
-            //            stakingContracts.push(phaseThreeOrionStakingContract);
             currentStakingType = StakingType.phaseThree;
         }
     }
@@ -174,19 +169,10 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken = IRewardToken(_feeToken);
     }
 
-    //    function setStakingContracts(address[] calldata _stakingContracts, StakingType tp) external onlyOwner {
-    //        stakingContracts = new IStakingContract[](_stakingContracts.length);
-    //        for (uint256 i = 0; i < _stakingContracts.length; i++) {
-    //            stakingContracts[i] = IStakingContract(_stakingContracts[i]);
-    //        }
-    //        currentStakingType = tp;
-    //    }
-
     function setCurrentStakingContract(StakingType _stakingType, address addr) external onlyOwner {
+        require(_stakingType != StakingType.Unknown, "staking type not found");
         currentStakingType = _stakingType;
         currentStakingContract = IStakingContract(addr);
-        //        stakingContracts = new IStakingContract[](1);
-        //        stakingContracts[0] = currentStakingContract;
     }
 
     function findUintIndex(uint256[] memory arr, uint256 v) internal pure returns (uint256) {
@@ -220,12 +206,12 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getNextRentId() internal returns (uint256) {
-        require(nextRentId < type(uint256).max, "ID overflow");
-        nextRentId += 1; // 自增ID
-        return nextRentId;
+        require(lastRentId < type(uint256).max, "ID overflow");
+        lastRentId += 1;
+        return lastRentId;
     }
 
-    function getDLCMachineRentFee(string calldata machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
+    function getDLCMachineRentFee(string memory machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
         public
         view
         returns (uint256)
@@ -236,22 +222,13 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
         external
     {
+        require(rentBlockNumbers % (10 * 30) == 0, "rent duration should be a multiple of 30 minutes");
+
         uint256 rentDuration = rentBlockNumbers * SECONDS_PER_BLOCK;
         require(rentDuration > 0, "rent duration should be greater than 0");
-        require(rentDuration % 60 * 30 == 0, "rent duration should be a multiple of 30 minutes");
 
-        //        StakingType stakingType = StakingType.Unknown;
-        //        if (phaseOneOrionStakingContract.isStaking(machineId)) {
-        //            stakingType = StakingType.phaseOne;
-        //        } else if (phaseTwoOrionStakingContract.isStaking(machineId)) {
-        //            stakingType = StakingType.phaseTwo;
-        //        } else if (phaseThreeOrionStakingContract.isStaking(machineId)) {
-        //            stakingType = StakingType.phaseThree;
-        //        } else {
-        //            // to common staking
-        //        }
         StakingType stakingType = currentStakingType;
-        require(stakingType != StakingType.Unknown, "machine not found");
+        require(currentStakingType != StakingType.Unknown, "machine not found");
 
         uint8 rentedGpuCount = machineId2RentedGpuCount[machineId];
         require(rentedGpuCount + gpuCount <= precompileContract.getMachineGPUCount(machineId), "gpu count not enough");
@@ -261,23 +238,23 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         machineId2RentedGpuCount[machineId] += gpuCount;
 
         // save rent info
-        nextRentId = getNextRentId();
-        rentInfos[nextRentId] = RentInfo({
+        lastRentId = getNextRentId();
+        rentInfos[lastRentId] = RentInfo({
             machineId: machineId,
             rentEndTime: block.timestamp + rentDuration,
             gpuCount: gpuCount,
             renter: msg.sender
         });
-        machineId2RentIds[machineId].push(nextRentId);
-        user2RentIds[msg.sender].push(nextRentId);
+        machineId2RentIds[machineId].push(lastRentId);
+        user2RentIds[msg.sender].push(lastRentId);
 
         // burn rent fee
         feeToken.burnFrom(msg.sender, rentFeeInFact);
-        emit BurnedFee(machineId, nextRentId, block.timestamp, rentFeeInFact, msg.sender, gpuCount);
+        emit BurnedFee(machineId, lastRentId, block.timestamp, rentFeeInFact, msg.sender, gpuCount);
 
         // add machine burn info
         BurnedDetail memory burnedDetail = BurnedDetail({
-            rentId: nextRentId,
+            rentId: lastRentId,
             burnTime: block.timestamp,
             burnDLCAmount: rentFeeInFact,
             renter: msg.sender,
@@ -285,7 +262,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         });
 
         address machineHolder = getMachineHolder(machineId);
-        console.log("machine holder: ", machineHolder);
         stakeHolder2RentedGPUCountOfStakingType[currentStakingType][machineHolder] += gpuCount;
         stakingType2totalRentedGPUCount[currentStakingType] += gpuCount;
 
@@ -308,13 +284,8 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         // notify staking contract renting machine action happened
         currentStakingContract.rentMachine(machineId, rentFee, gpuCount);
-        //        for (uint8 i = 0; i < stakingContracts.length; i++) {
-        //            if (address (stakingContracts[i]) != address(0x0)) {
-        //                stakingContracts[i].rentMachine(machineId);
-        //            }
-        //        }
 
-        emit RentMachine(nextRentId, machineId, block.timestamp + rentDuration, gpuCount, msg.sender);
+        emit RentMachine(lastRentId, machineId, block.timestamp + rentDuration, gpuCount, msg.sender);
     }
 
     function endRentMachine(uint256 rentId) external {
@@ -337,16 +308,16 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         stakingType2totalRentedGPUCount[currentStakingType] += rentInfo.gpuCount;
 
         currentStakingContract.endRentMachine(machineId, rentedGPUCount);
-        //        for (uint8 i = 0; i < stakingContracts.length; i++) {
-        //            if (address (stakingContracts[i]) != address(0x0)) {
-        //                stakingContracts[i].endRentMachine(machineId);
-        //            }
-        //        }
+
         emit EndRentMachine(rentId, machineId, rentInfo.rentEndTime, rentInfo.gpuCount, rentInfo.renter);
     }
 
     function getMachineHolder(string memory machineId) internal view returns (address) {
         return currentStakingContract.getMachineHolder(machineId);
+    }
+
+    function getMachineGPUCount(string memory machineId) external view returns (uint8) {
+        return precompileContract.getMachineGPUCount(machineId);
     }
 
     function reportMachineFault(uint256 rentId, uint256 reserveAmount) external {
@@ -425,7 +396,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function version() external pure returns (uint256) {
-        return 0;
+        return 6;
     }
 
     function getBurnedRentFeeByStakeHolder(uint8 phaseLevel, address stakeHolder) public view returns (uint256) {

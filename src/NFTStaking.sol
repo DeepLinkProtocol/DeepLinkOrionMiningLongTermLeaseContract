@@ -12,14 +12,15 @@ import "./library/Ln.sol";
 import "./interface/IStateContract.sol";
 import "./interface/IRewardToken.sol";
 import "./interface/IRentContract.sol";
+import "forge-std/console.sol";
 
 /// @custom:oz-upgrades-from OldNFTStaking
 contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
     uint8 public constant MAX_NFTS_PER_MACHINE = 20;
-    //    uint256 public constant REWARD_DURATION = 60 days;
-    uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
+    uint256 public constant REWARD_DURATION = 60 days;
+    //    uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
     uint256 public constant LOCK_PERIOD = 180 days;
     uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
 
@@ -415,10 +416,10 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         require(rewardStartAtBlockNumber > 0, "reward not start yet");
         require(stakeInfo.holder == stakeholder, "not stakeholder");
-        //        require(
-        //            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
-        //            "last claim less than 1 day"
-        //        );
+        require(
+            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
+            "last claim less than 1 day"
+        );
 
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
 
@@ -447,15 +448,13 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         ApprovedReportInfo[] storage approvedReportInfos = pendingSlashedMachineId2Renters[machineId];
         bool paidSlash = false;
         if (approvedReportInfos.length > 0 && stakeInfo.reservedAmount >= BASE_RESERVE_AMOUNT) {
-            uint256 n = stakeInfo.reservedAmount / approvedReportInfos.length;
-            for (uint8 i = 0; i < n; i++) {
-                ApprovedReportInfo memory lastSlashInfo = approvedReportInfos[approvedReportInfos.length - 1];
-
-                payToRentersForSlashing(machineId, lastSlashInfo.renters);
-                stakeInfo.reservedAmount -= BASE_RESERVE_AMOUNT;
-                approvedReportInfos.pop();
-            }
+            ApprovedReportInfo memory lastSlashInfo = approvedReportInfos[approvedReportInfos.length - 1];
+            payToRentersForSlashing(machineId, lastSlashInfo.renters);
+            approvedReportInfos.pop();
+            stakeInfo.reservedAmount -= BASE_RESERVE_AMOUNT;
+            totalReservedAmount -= BASE_RESERVE_AMOUNT;
             paidSlash = true;
+            stateContract.subReserveAmount(msg.sender, machineId, BASE_RESERVE_AMOUNT);
         }
 
         if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
@@ -500,6 +499,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         totalReservedAmount += moveToReserveAmount;
         stakeInfo.reservedAmount += moveToReserveAmount;
         rewardToken.mint(address(this), moveToReserveAmount);
+        console.log("moveToReserveAmount11", moveToReserveAmount);
         stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
         return (moveToReserveAmount, canClaimAmount);
     }
@@ -677,6 +677,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         if (reservedAmount > BASE_RESERVE_AMOUNT) {
             payToRentersForSlashing(machineId, renters);
             stakeInfo.reservedAmount -= BASE_RESERVE_AMOUNT;
+            totalReservedAmount -= BASE_RESERVE_AMOUNT;
         } else {
             pendingSlashedMachineId2Renters[machineId].push(ApprovedReportInfo({renters: renters}));
         }
@@ -692,7 +693,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         for (uint256 i = 0; i < renters.length; i++) {
             rewardToken.transfer(renters[i], amountPerRenter);
         }
-        totalReservedAmount -= BASE_RESERVE_AMOUNT;
         emit PaySlash(machineId, renters, BASE_RESERVE_AMOUNT);
     }
 

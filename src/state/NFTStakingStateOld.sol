@@ -6,16 +6,15 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "../interface/IPrecompileContract.sol";
 import "../interface/IRentContract.sol";
-import "forge-std/console.sol";
 import "../interface/IStakingContract.sol";
 
+/// @custom:oz-upgrades-from OldNFTStakingState
 contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     IPrecompileContract public precompileContract;
     IRentContract public rentContract;
+    IStakingContract public stakingContract;
 
     uint8 public phaseLevel;
-    uint256 public rewardStartGPUThreshold;
-    IStakingContract public stakingContract;
 
     string[] public machineIds;
     uint256 public addressCountInStaking;
@@ -93,26 +92,20 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         rentContract = IRentContract(_rentContract);
         stakingContract = IStakingContract(_stakingContract);
         phaseLevel = _phase_level;
-
-        if (phaseLevel == 1) {
-            rewardStartGPUThreshold = 500;
-        }
-        if (phaseLevel == 2) {
-            rewardStartGPUThreshold = 1000;
-        }
-        if (phaseLevel == 3) {
-            rewardStartGPUThreshold = 2000;
-        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function setValidCaller(address caller) external onlyOwner {
+    function setStakingContract(address caller) external onlyOwner {
         stakingContract = IStakingContract(caller);
     }
 
     function setPrecompileContract(address _precompileContract) external onlyOwner {
         precompileContract = IPrecompileContract(_precompileContract);
+    }
+
+    function setRentContract(address _rentContract) external onlyOwner {
+        rentContract = IRentContract(_rentContract);
     }
 
     function findStringIndex(string[] memory arr, string memory v) internal pure returns (uint256) {
@@ -301,7 +294,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         } else {
             topStakeHolders.push(SimpleStakeHolder(_holder, newCalcPoint));
             index = topStakeHolders.length - 1;
-            console.log("_holder1", _holder);
         }
     }
 
@@ -365,7 +357,7 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
             result[i] = StakeHolder({
                 holder: simpleHolder.holder,
                 totalCalcPoint: simpleHolder.totalCalcPoint,
-                totalGPUCount: stakeHolderInfo.totalCalcPoint,
+                totalGPUCount: stakeHolderInfo.totalGPUCount,
                 totalReservedAmount: stakeHolderInfo.totalReservedAmount,
                 rentedGPUCount: stakeHolderInfo.rentedGPUCount,
                 burnedRentFee: stakeHolderInfo.burnedRentFee,
@@ -447,8 +439,7 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
 
     function getStateSummary() public view returns (StateSummary memory) {
         uint256 totalGPUCount = stakingContract.getTotalGPUCountInStaking();
-        uint256 _leftGPUCountBeforeRewardStart =
-            totalGPUCount < rewardStartGPUThreshold ? rewardStartGPUThreshold - totalGPUCount : 0;
+        uint256 _leftGPUCountBeforeRewardStart = stakingContract.getLeftGPUCountToStartReward();
         (uint256 totalCalcPoint, uint256 totalReservedAmount) = stakingContract.getTotalCalcPointAndReservedAmount();
 
         return StateSummary({
@@ -467,6 +458,6 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
     }
 
     function version() external pure returns (uint256) {
-        return 5;
+        return 1;
     }
 }

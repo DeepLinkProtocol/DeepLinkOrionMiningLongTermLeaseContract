@@ -1,35 +1,10 @@
-### Contract Name: IDCMachineNFTStaking
-
-### Contract Address: 0xc1d4f981a24fdf37e44291e5c9424496e1c7b8b2
-
-### ABI : https://blockscout-testnet.dbcscan.io/address/0xb0f96782D0Ce268715bFdF813a016BF53eD17268?tab=contract
+### Contract: 
+    Token: 0x4aF0632B0E63EE55e69e76c912E376731EECdbc5
+    Nft: 0x15Bfd6213E2AAAe94884c0Decf1242E069800305
+    Staking: 0x312aA5b62D17B992699B4Ce7eDADeDb907163584
+    Rent: 0x40e17665515108f72304ef3f0a20336a67575e3b
+    State: 0x691d846E14D999a21c9Ac3bb3E2e88F7f207FBA6
+      -- ABI: https://blockscout-testnet.dbcscan.io/address/0x4Cf95FBAFC7C3701c923146Dd12e02072B93eef9?tab=contract
 
 ### Network : DeepBrainChain Testnet
 
-#### Methods:
-
- * `getTotalGPUCountInStaking()public view returns (uint256)` - Get GPU count in staking.
-
- * `getLeftGPUCountToStartReward() public view returns (uint256)`- Get left GPU count for starting the staking reward.
-
- * `totalCalcPoint() public view returns (uint256)`- Get total machine calculation point in staking.
-
- * `addressInStaking() public view returns (uint256)` - Get address count in staking.
-
- * `getRentedGPUCountInDlcNftStaking() external view returns (uint256)` - Get rented GPU count in staking for now.
-
- * `getTotalDlcNftStakingBurnedRentFee() external view returns (uint256)` - Get total dlc rent fee in staking(All rent fee burned for now).
-
- * `totalReservedAmount() public view returns (uint256)` - Get total reserved amount in staking.
-
- * `getTopStakeHolders() public view returns (address[3] memory top3HoldersAddress, uint256[3] memory top3HoldersCalcPoint)` - Get top 3 stakeholders address and their machines calculation point.
-
- * `getCalcPointOfStakeHolders(address _holder) public view returns (uint256)` - Get machines calculation point of a stakeholder.
-
- * `getTotalGPUCountOfStakeHolder(address _holder) public view returns (uint256)` - Get total GPU count of a stakeholder.
-
- * `getRentedGPUCountOfStakeHolder(address _holder) external view returns (uint256)` Get rented GPU count of a stakeholder for now.
-
- * `getBurnedRentFeeOfStakeHolder(address _holder) public view returns (uint256)` Get dlc rent fee of a stakeholder in staking(All rent fee burned for now)
-
- * `getTotalRewardAmountOfStakeHolder(address _holder) public returns (uint256 releasedAmount, uint256 totalAmount)` - Get released reward amount and total reward amount of a stakeholder.

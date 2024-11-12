@@ -10,29 +10,36 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "./library/Ln.sol";
 import "./interface/IStateContract.sol";
-import "forge-std/console.sol";
 import "./interface/IRewardToken.sol";
 import "./interface/IRentContract.sol";
 
-/// @custom:oz-upgrades-from OldNFTStaking
 contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
+    uint8 public constant SECONDS_PER_BLOCK = 6;
+    uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
+    uint8 public constant MAX_NFTS_PER_MACHINE = 20;
+    //    uint256 public constant REWARD_DURATION = 60 days;
+    uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
+    uint256 public constant LOCK_PERIOD = 180 days;
+    uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
+
+    IERC721 public nftToken;
+
     IStateContract public stateContract;
     IPrecompileContract public precompileContract;
-    uint8 public constant SECONDS_PER_BLOCK = 6;
     IRewardToken public rewardToken;
-
-    uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
+    IRentContract public rentContract;
 
     uint256 public totalReservedAmount;
-
     uint256 public totalCalcPoint;
     // uint = calcPoint * ln(reservedAmount)
     uint256 public totalAdjustUnit;
-
     uint256 public dailyRewardAmount;
     uint256 public rewardPerUnit;
-
     uint256 public lastUpdateTime;
+    uint8 public phaseLevel;
+    uint256 public totalGpuCount;
+    uint256 public rewardStartAtBlockNumber;
+    uint256 public rewardStartGPUThreshold;
 
     struct StakeInfo {
         address holder;
@@ -52,8 +59,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
 
     mapping(string => StakeInfo) public machineId2StakeInfos;
 
-    IERC721 public nftToken;
-
     struct LockedRewardDetail {
         uint256 amount;
         uint256 unlockTime;
@@ -61,26 +66,11 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
 
     mapping(string => LockedRewardDetail[]) public machineId2LockedRewardDetails;
 
-    uint8 public constant MAX_NFTS_PER_MACHINE = 20;
-    //    uint256 public constant REWARD_DURATION = 60 days;
-    uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days
-
-    uint256 public constant LOCK_PERIOD = 180 days;
-    uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
-
-    uint8 public phaseLevel;
-
     struct ApprovedReportInfo {
         address[] renters;
     }
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
-
-    IRentContract public rentContract;
-
-    uint256 public totalGpuCount;
-    uint256 public rewardStartAtBlockNumber;
-    uint256 public rewardStartGPUThreshold;
 
     event staked(address indexed stakeholder, string machineId, uint256 stakeAtBlockNumber);
     event unStaked(address indexed stakeholder, string machineId, uint256 unStakeAtBlockNumber);
@@ -151,6 +141,10 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         rewardStartAtBlockNumber = 0;
     }
 
+    function setThreshold(uint256 _threshold) external onlyOwner {
+        rewardStartGPUThreshold = _threshold;
+    }
+
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function setPrecompileContract(address _registerContract) external onlyOwner {
@@ -181,7 +175,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function getDailyRewardAmount() public view returns (uint256) {
-        if (getRewardStartAt() > 0) {
+        if (rewardStartAtBlockNumber > 0) {
             return dailyRewardAmount;
         }
         return 0;
@@ -198,9 +192,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) internal {
-        console.log("machineId222", machineId);
-        console.log("reserveAmount", reserveAmount);
-
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
         // update global reward rate
@@ -281,10 +272,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         return rewards;
     }
 
-    function getRewardStartAt() public view returns (uint256) {
-        return rewardStartAtBlockNumber;
-    }
-
     function getRewardStartTime() public view returns (uint256) {
         if (rewardStartAtBlockNumber == 0) {
             return 0;
@@ -303,9 +290,8 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         nonReentrant
     {
         require(precompileContract.isMachineOwner(machineId, msg.sender), "not machine owner");
-        uint256 rewardStart = getRewardStartAt();
-        if (rewardStart > 0) {
-            require((block.number - rewardStart) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
+        if (rewardStartAtBlockNumber > 0) {
+            require((block.number - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
         }
 
         address stakeholder = msg.sender;
@@ -315,9 +301,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         uint256 calcPoint = getMachineCalcPoint(machineId) * nftTokenIds.length;
         require(calcPoint > 0, "machine calc point not found");
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-
-        console.log("rentEndAt", rentEndAt);
-        console.log("rewardStartAtBlockNumber", rewardStartAtBlockNumber);
         if (rewardStartAtBlockNumber > 0) {
             require(
                 (rentEndAt - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK >= REWARD_DURATION,
@@ -431,10 +414,10 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         require(rewardStartAtBlockNumber > 0, "reward not start yet");
         require(stakeInfo.holder == stakeholder, "not stakeholder");
-        require(
-            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
-            "last claim less than 1 day"
-        );
+        //        require(
+        //            (block.number - stakeInfo.lastClaimAtBlockNumber) * SECONDS_PER_BLOCK >= 1 days,
+        //            "last claim less than 1 day"
+        //        );
 
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
 
@@ -453,32 +436,17 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         uint256 moveToReserveAmount = 0;
         if (canClaimAmount > 0) {
             if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
-                uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
-                if (canClaimAmount >= leftAmountShouldReserve) {
-                    canClaimAmount -= leftAmountShouldReserve;
-                    //                    stakeholder2Reserved[stakeholder] += leftAmountShouldReserve;
-                    moveToReserveAmount = leftAmountShouldReserve;
-                } else {
-                    canClaimAmount = 0;
-                    moveToReserveAmount = canClaimAmount;
-                }
-
-                console.log("moveToReserveAmount0", totalReservedAmount);
-
-                // the amount should be transfer to reserve
-                totalReservedAmount += moveToReserveAmount;
-                console.log("moveToReserveAmount1", totalReservedAmount);
-                stakeInfo.reservedAmount += moveToReserveAmount;
-                rewardToken.mint(address(this), moveToReserveAmount);
-                stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
+                (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
+                    tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+                canClaimAmount = leftAmountCanClaim;
+                moveToReserveAmount = _moveToReserveAmount;
             }
         }
 
         ApprovedReportInfo[] storage approvedReportInfos = pendingSlashedMachineId2Renters[machineId];
         bool paidSlash = false;
         if (approvedReportInfos.length > 0 && stakeInfo.reservedAmount >= BASE_RESERVE_AMOUNT) {
-            uint256 n = stakeInfo.reservedAmount / BASE_RESERVE_AMOUNT;
-            console.log("666", rewardToken.balanceOf(address(this)));
+            uint256 n = stakeInfo.reservedAmount / approvedReportInfos.length;
             for (uint8 i = 0; i < n; i++) {
                 ApprovedReportInfo memory lastSlashInfo = approvedReportInfos[approvedReportInfos.length - 1];
 
@@ -487,6 +455,13 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
                 approvedReportInfos.pop();
             }
             paidSlash = true;
+        }
+
+        if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
+            (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
+                tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+            canClaimAmount = leftAmountCanClaim;
+            moveToReserveAmount = _moveToReserveAmount;
         }
 
         if (canClaimAmount > 0) {
@@ -505,6 +480,27 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         }
 
         emit claimed(stakeholder, machineId, canClaimAmount, moveToReserveAmount, paidSlash);
+    }
+
+    function tryMoveReserve(string memory machineId, uint256 canClaimAmount, StakeInfo storage stakeInfo)
+        internal
+        returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)
+    {
+        uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
+        if (canClaimAmount >= leftAmountShouldReserve) {
+            canClaimAmount -= leftAmountShouldReserve;
+            moveToReserveAmount = leftAmountShouldReserve;
+        } else {
+            moveToReserveAmount = canClaimAmount;
+            canClaimAmount = 0;
+        }
+
+        // the amount should be transfer to reserve
+        totalReservedAmount += moveToReserveAmount;
+        stakeInfo.reservedAmount += moveToReserveAmount;
+        rewardToken.mint(address(this), moveToReserveAmount);
+        stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
+        return (moveToReserveAmount, canClaimAmount);
     }
 
     modifier canClaim(string memory machineId) {
@@ -551,8 +547,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         require(stakeInfo.holder == stakeholder, "not stakeholder");
         require(stakeInfo.startAtBlockNumber > 0, "staking not found");
 
-        uint256 rewardStartAt = getRewardStartAt();
-        if (rewardStartAt > 0) {
+        if (rewardStartAtBlockNumber > 0) {
             require(
                 (block.number - stakeInfo.startAtBlockNumber) * SECONDS_PER_BLOCK > REWARD_DURATION,
                 "staking reward duration not end yet"
@@ -632,23 +627,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         return stakeInfo.nftTokenIds;
     }
 
-    //    function removeMachineIdByValueUnordered(string memory machineId) public {
-    //        uint256 index = findMachineIdIndex(machineId);
-    //
-    //        machineIds[index] = machineIds[machineIds.length - 1];
-    //
-    //        machineIds.pop();
-    //    }
-    //
-    //    function findMachineIdIndex(string memory machineId) internal view returns (uint256) {
-    //        for (uint256 i = 0; i < machineIds.length; i++) {
-    //            if (keccak256(abi.encodePacked(machineIds[i])) == keccak256(abi.encodePacked(machineId))) {
-    //                return i;
-    //            }
-    //        }
-    //        revert("Element not found");
-    //    }
-
     function getTotalGPUCountInStaking() public view returns (uint256) {
         return totalGpuCount;
     }
@@ -656,54 +634,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     function getLeftGPUCountToStartReward() public view returns (uint256) {
         return rewardStartGPUThreshold > totalGpuCount ? rewardStartGPUThreshold - totalGpuCount : 0;
     }
-
-    //    function getRentedGPUCountInDlcNftStaking() external view returns (uint256) {
-    //        return rentContract.getTotalRentedGPUCount(phaseLevel);
-    //    }
-    //
-    //    function getTotalDlcNftStakingBurnedRentFee() external view returns (uint256) {
-    //        return rentContract.getTotalBurnedRentFee(phaseLevel);
-    //    }
-
-    //    function getTotalRewardAmountOfStakeHolder(address _holder)
-    //        public
-    //        returns (uint256 releasedAmount, uint256 totalAmount)
-    //    {
-    //        uint256 totalLockedAmount = 0;
-    //        string[] memory machineIdsOfHolder = stateContract.getHolderMachineIds(_holder);
-    //        for (uint256 i = 0; i < machineIdsOfHolder.length; i++) {
-    //            string memory machineId = machineIdsOfHolder[i];
-    //            uint256 claimedAmount = machineId2StakeInfos[machineIdsOfHolder[i]].claimedAmount;
-    //            (uint256 canClaimedAmount, uint256 lockedAmount) = getRewardAmountCanClaim(machineId);
-    //            releasedAmount += claimedAmount + canClaimedAmount;
-    //            totalLockedAmount += lockedAmount;
-    //        }
-    //        return (releasedAmount, totalLockedAmount + releasedAmount);
-    //    }
-
-    //    function getTotalGPUCountOfStakeHolder(address _holder) public view returns (uint256) {
-    //        return stateContract.getTotalGPUCountOfStakeHolder(_holder);
-    //    }
-    //
-    //    function getRentedGPUCountOfStakeHolder(address _holder) public view returns (uint256) {
-    //        return stateContract.getRentedGPUCountOfStakeHolder(_holder);
-    //    }
-
-    //    function getBurnedRentFeeOfStakeHolder(address _holder) public view returns (uint256) {
-    //        return stateContract.getBurnedRentFeeOfStakeHolder(_holder);
-    //    }
-    //
-    //    function getCalcPointOfStakeHolders(address _holder) public view returns (uint256) {
-    //        return stateContract.getCalcPointOfStakeHolders(_holder);
-    //    }
-
-    //    function getTopStakeHolders()
-    //        public
-    //        view
-    //        returns (IStateContract.StakeHolder[] memory topHolders, uint256 total)
-    //    {
-    //        return stateContract.getTopStakeHolders();
-    //    }
 
     function rentMachine(string calldata machineId, uint256 fee, uint8 rentedGPUCount) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
@@ -754,24 +684,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     function getMachineHolder(string memory machineId) external view returns (address) {
         return machineId2StakeInfos[machineId].holder;
     }
-
-    //    function getMachinesInStaking(uint256 startIndex, uint256 pageSize) external view returns (string[] memory) {
-    //        require(startIndex < machineIds.length, "Start index out of bounds");
-    //
-    //        // 计算返回的数组大小
-    //        uint256 endIndex = startIndex + pageSize;
-    //        if (endIndex > machineIds.length) {
-    //            endIndex = machineIds.length;
-    //        }
-    //        uint256 length = endIndex - startIndex;
-    //
-    //        string[] memory pageItems = new string[](length);
-    //        for (uint256 i = 0; i < length; i++) {
-    //            pageItems[i] = machineIds[startIndex + i];
-    //        }
-    //
-    //        return pageItems;
-    //    }
 
     function payToRentersForSlashing(string memory machineId, address[] memory renters) internal {
         uint256 amountPerRenter = BASE_RESERVE_AMOUNT / renters.length;

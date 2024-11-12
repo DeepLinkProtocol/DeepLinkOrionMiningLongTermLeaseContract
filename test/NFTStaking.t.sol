@@ -45,7 +45,7 @@ contract StakingTest is Test {
         address stateProxy = stateDeploy.deploy();
         state = NFTStakingState(stateProxy);
         state.setPrecompileContract(precompileContractAddr);
-        state.setValidCaller(address(staking));
+        state.setStakingContract(address(staking));
 
         assertEq(staking.owner(), address(this));
         rewardTokenAddr = address(new Token());
@@ -696,8 +696,6 @@ contract StakingTest is Test {
         vm.prank(stakeHolder2);
         staking.claim(machineId2);
 
-        console.log("aax", staking.totalReservedAmount());
-
         uint256 renterBalanceAfterSlash = Token(rewardTokenAddr).balanceOf(renter);
         uint256 holderBalanceAfterSlashAndClaim = Token(rewardTokenAddr).balanceOf(stakeHolder2);
 
@@ -705,9 +703,10 @@ contract StakingTest is Test {
             renterBalanceAfterSlash - renterBalanceBeforeSlash, staking.BASE_RESERVE_AMOUNT(), "slash amount failed"
         );
         assertGt(holderBalanceAfterSlashAndClaim, holderBalanceBeforeSlashAndClaim);
-        (,,, uint256 _totalReservedAmount,,,,) = state.stakeHolders(stakeHolder);
-        assertEq(_totalReservedAmount, 0, "holder reserved amount failed");
+        (address holder_, uint256 calcPoint, uint256 gpuCount, uint256 rentedGpuCount, uint256 _totalReservedAmount,,,)
+        = state.stakeHolders(stakeHolder2);
+        assertEq(_totalReservedAmount, staking.BASE_RESERVE_AMOUNT(), "holder2 reserved amount failed");
 
-        assertEq(staking.totalReservedAmount(), 0, "reserved amount failed");
+        assertEq(staking.totalReservedAmount(), staking.BASE_RESERVE_AMOUNT(), "reserved amount failed");
     }
 }

@@ -15,7 +15,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     IStakingContract public stakingContract;
 
     uint8 public phaseLevel;
-    uint256 public rewardStartGPUThreshold;
 
     string[] public machineIds;
     uint256 public addressCountInStaking;
@@ -93,21 +92,11 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         rentContract = IRentContract(_rentContract);
         stakingContract = IStakingContract(_stakingContract);
         phaseLevel = _phase_level;
-
-        if (phaseLevel == 1) {
-            rewardStartGPUThreshold = 500;
-        }
-        if (phaseLevel == 2) {
-            rewardStartGPUThreshold = 1000;
-        }
-        if (phaseLevel == 3) {
-            rewardStartGPUThreshold = 2000;
-        }
     }
 
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
-    function setValidCaller(address caller) external onlyOwner {
+    function setStakingContract(address caller) external onlyOwner {
         stakingContract = IStakingContract(caller);
     }
 
@@ -200,6 +189,31 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         previousMachineInfo.reserveAmount += _reserveAmount;
         stakeHolderInfo.totalReservedAmount += _reserveAmount;
+    }
+
+    function subReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount)
+        external
+        onlyNftStakingAddress
+    {
+        StakeHolderInfo storage stakeHolderInfo = stakeHolders[_holder];
+
+        if (stakeHolderInfo.holder == address(0)) {
+            stakeHolderInfo.holder = _holder;
+        }
+
+        MachineInfo storage previousMachineInfo = stakeHolderInfo.machineId2Info[_machineId];
+
+        if (previousMachineInfo.reserveAmount > _reserveAmount) {
+            previousMachineInfo.reserveAmount -= _reserveAmount;
+        } else {
+            previousMachineInfo.reserveAmount = 0;
+        }
+
+        if (stakeHolderInfo.totalReservedAmount > _reserveAmount) {
+            stakeHolderInfo.totalReservedAmount -= _reserveAmount;
+        } else {
+            stakeHolderInfo.totalReservedAmount = 0;
+        }
     }
 
     function addClaimedRewardAmount(
@@ -450,8 +464,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function getStateSummary() public view returns (StateSummary memory) {
         uint256 totalGPUCount = stakingContract.getTotalGPUCountInStaking();
-        uint256 _leftGPUCountBeforeRewardStart =
-            totalGPUCount < rewardStartGPUThreshold ? rewardStartGPUThreshold - totalGPUCount : 0;
+        uint256 _leftGPUCountBeforeRewardStart = stakingContract.getLeftGPUCountToStartReward();
         (uint256 totalCalcPoint, uint256 totalReservedAmount) = stakingContract.getTotalCalcPointAndReservedAmount();
 
         return StateSummary({
@@ -470,6 +483,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function version() external pure returns (uint256) {
-        return 5;
+        return 1;
     }
 }
