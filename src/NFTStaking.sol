@@ -89,7 +89,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     event AddNFTs(string machineId, uint256[] nftTokenIds);
     event PaySlash(string machineId, address[] renters, uint256 slashAmount);
     event RentMachine(string machineId);
-    event EndRentMachine(string machineId);
+    event EndRentMachine(string machineId, uint256 rentedGpuCount);
     event ReportMachineFault(string machineId, address[] renters);
 
     modifier onlyRentContract() {
@@ -638,9 +638,6 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
 
     function rentMachine(string calldata machineId, uint256 fee, uint8 rentedGPUCount) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        if (stakeInfo.isRentedByUser) {
-            return;
-        }
         stakeInfo.isRentedByUser = true;
 
         uint256 newCalcPoint = stakeInfo.calcPoint * 13 / 10;
@@ -655,9 +652,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
 
     function endRentMachine(string calldata machineId, uint8 rentedGPUCount) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        if (!stakeInfo.isRentedByUser) {
-            return;
-        }
+        require(stakeInfo.isRentedByUser, "not rented by user");
         stakeInfo.isRentedByUser = false;
         uint256 newCalcPoint = stakeInfo.calcPoint * 10 / 13;
         joinStaking(machineId, newCalcPoint, stakeInfo.reservedAmount);
@@ -665,8 +660,8 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
             stakeInfo.holder, machineId, newCalcPoint, stakeInfo.reservedAmount, 0, false
         );
 
-        stateContract.SubRentedGPUCount(stakeInfo.holder, machineId, rentedGPUCount);
-        emit EndRentMachine(machineId);
+        stateContract.subRentedGPUCount(stakeInfo.holder, machineId, rentedGPUCount);
+        emit EndRentMachine(machineId, rentedGPUCount);
     }
 
     function reportMachineFault(string calldata machineId, address[] memory renters) external onlyRentContract {

@@ -158,7 +158,7 @@ contract OldNFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeabl
         stakeHolderInfo.rentedGPUCount += rentedGPUCount;
     }
 
-    function SubRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
+    function subRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
         external
         onlyNftStakingAddress
     {

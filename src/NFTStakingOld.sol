@@ -664,7 +664,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
             stakeInfo.holder, machineId, newCalcPoint, stakeInfo.reservedAmount, 0, false
         );
 
-        stateContract.SubRentedGPUCount(stakeInfo.holder, machineId, rentedGPUCount);
+        stateContract.subRentedGPUCount(stakeInfo.holder, machineId, rentedGPUCount);
         emit EndRentMachine(machineId);
     }
 

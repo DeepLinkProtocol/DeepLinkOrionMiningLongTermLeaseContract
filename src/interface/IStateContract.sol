@@ -19,7 +19,7 @@ interface IStateContract {
 
     function addRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount) external;
 
-    function SubRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount) external;
+    function subRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount) external;
 
     function addReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount) external;
     function subReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount) external;

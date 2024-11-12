@@ -291,10 +291,12 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function endRentMachine(uint256 rentId) external {
         RentInfo memory rentInfo = rentInfos[rentId];
-        require(getMachineHolder(rentInfo.machineId) == msg.sender, "not machine owner");
-        string memory machineId = rentInfo.machineId;
 
-        uint8 rentedGPUCount = rentInfos[rentId].gpuCount;
+        string memory machineId = rentInfo.machineId;
+        address machineHolder = getMachineHolder(machineId);
+        require(machineHolder == msg.sender, "not machine owner");
+
+        uint8 rentedGPUCount = rentInfo.gpuCount;
         if (machineId2RentedGpuCount[machineId] >= rentedGPUCount) {
             machineId2RentedGpuCount[machineId] -= rentedGPUCount;
         } else {
@@ -304,12 +306,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         delete rentInfos[rentId];
         removeValueOfUintArray(rentId, machineId2RentIds[machineId]);
 
-        address machineHolder = getMachineHolder(machineId);
-        stakeHolder2RentedGPUCountOfStakingType[currentStakingType][machineHolder] -= rentInfo.gpuCount;
-        stakingType2totalRentedGPUCount[currentStakingType] += rentInfo.gpuCount;
+        stakeHolder2RentedGPUCountOfStakingType[currentStakingType][machineHolder] -= rentedGPUCount;
+        stakingType2totalRentedGPUCount[currentStakingType] -= rentedGPUCount;
 
         currentStakingContract.endRentMachine(machineId, rentedGPUCount);
-
         emit EndRentMachine(rentId, machineId, rentInfo.rentEndTime, rentInfo.gpuCount, rentInfo.renter);
     }
 

@@ -158,7 +158,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         stakeHolderInfo.rentedGPUCount += rentedGPUCount;
     }
 
-    function SubRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
+    function subRentedGPUCount(address _holder, string memory _machineId, uint8 rentedGPUCount)
         external
         onlyNftStakingAddress
     {
@@ -169,7 +169,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
 
         MachineInfo storage previousMachineInfo = stakeHolderInfo.machineId2Info[_machineId];
-        if (previousMachineInfo.rentedGPUCount > rentedGPUCount) {
+        if (previousMachineInfo.rentedGPUCount >= rentedGPUCount) {
             previousMachineInfo.rentedGPUCount -= rentedGPUCount;
             stakeHolderInfo.rentedGPUCount -= rentedGPUCount;
         }
