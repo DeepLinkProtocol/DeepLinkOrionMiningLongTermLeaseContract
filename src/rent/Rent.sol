@@ -367,7 +367,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
-    function refuseMachineFaultReporting(string calldata machineId) external onlyAdmins {
+    function rejectMachineFaultReporting(string calldata machineId) external onlyAdmins {
         require(pendingSlashMachineId2Renters[machineId].length > 0, "not found reported machine");
 
         require(pendingSlashMachineId2ApprovedAdmins[machineId][msg.sender] != Vote.Finished, "vote already finished");
