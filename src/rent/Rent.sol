@@ -143,16 +143,19 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (_phaseOneOrionStakingContract != address(0x0)) {
             phaseOneOrionStakingContract = IStakingContract(_phaseOneOrionStakingContract);
             currentStakingType = StakingType.phaseOne;
+            currentStakingContract = phaseOneOrionStakingContract;
         }
 
         if (_phaseTwoOrionStakingContract != address(0x0)) {
             phaseTwoOrionStakingContract = IStakingContract(_phaseTwoOrionStakingContract);
             currentStakingType = StakingType.phaseTwo;
+            currentStakingContract = phaseTwoOrionStakingContract;
         }
 
         if (_phaseThreeOrionStakingContract != address(0x0)) {
             phaseThreeOrionStakingContract = IStakingContract(_phaseThreeOrionStakingContract);
             currentStakingType = StakingType.phaseThree;
+            currentStakingContract = phaseThreeOrionStakingContract;
         }
     }
 
