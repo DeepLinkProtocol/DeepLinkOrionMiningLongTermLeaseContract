@@ -703,8 +703,7 @@ contract StakingTest is Test {
             renterBalanceAfterSlash - renterBalanceBeforeSlash, staking.BASE_RESERVE_AMOUNT(), "slash amount failed"
         );
         assertGt(holderBalanceAfterSlashAndClaim, holderBalanceBeforeSlashAndClaim);
-        (address holder_, uint256 calcPoint, uint256 gpuCount, uint256 rentedGpuCount, uint256 _totalReservedAmount,,,)
-        = state.stakeHolders(stakeHolder2);
+        (,,,, uint256 _totalReservedAmount,,,) = state.stakeHolders(stakeHolder2);
         assertEq(_totalReservedAmount, staking.BASE_RESERVE_AMOUNT(), "holder2 reserved amount failed");
 
         assertEq(staking.totalReservedAmount(), staking.BASE_RESERVE_AMOUNT(), "reserved amount failed");
