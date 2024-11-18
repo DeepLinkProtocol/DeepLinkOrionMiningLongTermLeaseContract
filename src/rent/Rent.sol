@@ -226,6 +226,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
         external
     {
+        require(currentStakingContract.isStaking(machineId), "machine can not rent");
         require(rentBlockNumbers % (10 * 30) == 0, "rent duration should be a multiple of 30 minutes");
 
         uint256 rentDuration = rentBlockNumbers * SECONDS_PER_BLOCK;

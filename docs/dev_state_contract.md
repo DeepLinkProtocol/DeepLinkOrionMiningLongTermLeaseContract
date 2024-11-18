@@ -10,7 +10,8 @@
 * getMachinesInStaking(uint256 page, uint256 pageSize) returns (string[]) - Get Machine In staking
 
 * function getStateSummary() returns (StateSummary memory) - Get state summary info. contains following fields:
-  ```struct StateSummary {
+  ```
+  struct StateSummary {
        uint256 totalCalcPoint;  // Total calculation point in staking.
        uint256 totalGPUCount;  // Total GPU count in staking.
        uint256 totalCalcPointPoolCount;    // Total calculation point pool count in staking.
@@ -21,7 +22,8 @@
     }
   
 * getTopStakeHolders(uint256 offset, uint256 limit) returns (StakeHolder[] memory, uint256 total) - Get top stakeholders info ordered by their machines calculation point. 'offset' column start from 0
-  ```struct StakeHolder {
+  ```
+  struct StakeHolder {
        address holder;   // Address of stakeholder.
        uint256 totalCalcPoint; // Total calculation point of machines of stakeholder.
        uint256 totalGPUCount; // Total GPU count of machines of stakeholder.
