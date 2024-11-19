@@ -80,7 +80,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     uint8 public voteThreshold;
     string[] public pendingSlashMachineIds;
-    mapping(string => address[]) public pendingSlashMachineId2Renters;
+    mapping(string => address) public pendingSlashMachineId2Renter;
 
     enum Vote {
         None,
@@ -331,29 +331,24 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken.transferFrom(msg.sender, address(this), REPORT_RESERVE_AMOUNT);
         machineId2Reporter[rentInfo.machineId] = msg.sender;
 
-        uint256[] memory rentIds = machineId2RentIds[rentInfo.machineId];
-        for (uint8 i = 0; i < rentIds.length; i++) {
-            uint256 _rentId = rentIds[i];
-            RentInfo memory _rentInfo = rentInfos[_rentId];
-            pendingSlashMachineId2Renters[rentInfo.machineId].push(_rentInfo.renter);
-        }
+        pendingSlashMachineId2Renter[rentInfo.machineId]= msg.sender;
         pendingSlashMachineIds.push(rentInfo.machineId);
         emit ReportMachineFault(rentId, rentInfo.machineId, msg.sender);
     }
 
     function approveMachineFaultReporting(string calldata machineId) external onlyAdmins {
-        require(pendingSlashMachineId2Renters[machineId].length > 0, "not found reported machine");
+        require(pendingSlashMachineId2Renter[machineId] != address(0x0), "not found reported machine");
 
         require(pendingSlashMachineId2ApprovedAdmins[machineId][msg.sender] != Vote.Finished, "vote already finished");
         pendingSlashMachineId2ApprovedAdmins[machineId][msg.sender] = Vote.Yes;
         emit ApprovedReport(machineId, msg.sender);
         pendingSlashMachineId2ApprovedCount[machineId] += 1;
         if (pendingSlashMachineId2ApprovedCount[machineId] >= voteThreshold) {
-            address[] memory renters = pendingSlashMachineId2Renters[machineId];
-            currentStakingContract.reportMachineFault(machineId, renters);
+            address renter = pendingSlashMachineId2Renter[machineId];
+            currentStakingContract.reportMachineFault(machineId, renter);
 
             removeValueOfStringArray(machineId, pendingSlashMachineIds);
-            delete pendingSlashMachineId2Renters[machineId];
+            delete pendingSlashMachineId2Renter[machineId];
             delete pendingSlashMachineId2ApprovedCount[machineId];
 
             for (uint8 i = 0; i < adminsToApprove.length; i++) {
@@ -368,7 +363,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function rejectMachineFaultReporting(string calldata machineId) external onlyAdmins {
-        require(pendingSlashMachineId2Renters[machineId].length > 0, "not found reported machine");
+        require(pendingSlashMachineId2Renter[machineId] != address(0x0), "not found reported machine");
 
         require(pendingSlashMachineId2ApprovedAdmins[machineId][msg.sender] != Vote.Finished, "vote already finished");
         pendingSlashMachineId2ApprovedAdmins[machineId][msg.sender] = Vote.No;
@@ -376,7 +371,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         emit RefusedReport(machineId, msg.sender);
         if (pendingSlashMachineId2RefuseCount[machineId] >= voteThreshold) {
             removeValueOfStringArray(machineId, pendingSlashMachineIds);
-            delete pendingSlashMachineId2Renters[machineId];
+            delete pendingSlashMachineId2Renter[machineId];
             delete pendingSlashMachineId2ApprovedCount[machineId];
 
             for (uint8 i = 0; i < adminsToApprove.length; i++) {
@@ -388,10 +383,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
                 feeToken.transferFrom(address(this), adminsToApprove[i], amountPerAdmin);
             }
 
-            address reporter = machineId2Reporter[machineId];
-            feeToken.transfer(reporter, REPORT_RESERVE_AMOUNT);
             delete machineId2Reporter[machineId];
-
             emit ExecuteReport(machineId, Vote.No);
         }
     }

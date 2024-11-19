@@ -69,7 +69,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     mapping(string => LockedRewardDetail[]) public machineId2LockedRewardDetails;
 
     struct ApprovedReportInfo {
-        address[] renters;
+        address renter;
     }
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
@@ -87,10 +87,10 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     event RewardTokenSet(address indexed addr);
     event NftTokenSet(address indexed addr);
     event AddNFTs(string machineId, uint256[] nftTokenIds);
-    event PaySlash(string machineId, address[] renters, uint256 slashAmount);
+    event PaySlash(string machineId, address renter, uint256 slashAmount);
     event RentMachine(string machineId);
     event EndRentMachine(string machineId, uint256 rentedGpuCount);
-    event ReportMachineFault(string machineId, address[] renters);
+    event ReportMachineFault(string machineId, address renter);
 
     modifier onlyRentContract() {
         require(msg.sender == address(rentContract), "only rent contract can call this function");
@@ -326,7 +326,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
             );
             for (uint8 i = 0; i < approvedReportInfos.length; i++) {
                 // pay slash to renters
-                payToRentersForSlashing(machineId, approvedReportInfos[i].renters);
+                payToRenterForSlashing(machineId, approvedReportInfos[i].renter);
                 amount -= BASE_RESERVE_AMOUNT;
             }
             delete pendingSlashedMachineId2Renters[machineId];
@@ -449,7 +449,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         bool paidSlash = false;
         if (approvedReportInfos.length > 0 && stakeInfo.reservedAmount >= BASE_RESERVE_AMOUNT) {
             ApprovedReportInfo memory lastSlashInfo = approvedReportInfos[approvedReportInfos.length - 1];
-            payToRentersForSlashing(machineId, lastSlashInfo.renters);
+            payToRenterForSlashing(machineId, lastSlashInfo.renter);
             approvedReportInfos.pop();
             stakeInfo.reservedAmount -= BASE_RESERVE_AMOUNT;
             totalReservedAmount -= BASE_RESERVE_AMOUNT;
@@ -664,17 +664,17 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         emit EndRentMachine(machineId, rentedGPUCount);
     }
 
-    function reportMachineFault(string calldata machineId, address[] memory renters) external onlyRentContract {
+    function reportMachineFault(string calldata machineId, address renter) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         uint256 reservedAmount = stakeInfo.reservedAmount;
-        emit ReportMachineFault(machineId, renters);
+        emit ReportMachineFault(machineId, renter);
 
         if (reservedAmount > BASE_RESERVE_AMOUNT) {
-            payToRentersForSlashing(machineId, renters);
+            payToRenterForSlashing(machineId, renter);
             stakeInfo.reservedAmount -= BASE_RESERVE_AMOUNT;
             totalReservedAmount -= BASE_RESERVE_AMOUNT;
         } else {
-            pendingSlashedMachineId2Renters[machineId].push(ApprovedReportInfo({renters: renters}));
+            pendingSlashedMachineId2Renters[machineId].push(ApprovedReportInfo({renter: renter}));
         }
     }
 
@@ -682,13 +682,9 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         return machineId2StakeInfos[machineId].holder;
     }
 
-    function payToRentersForSlashing(string memory machineId, address[] memory renters) internal {
-        uint256 amountPerRenter = BASE_RESERVE_AMOUNT / renters.length;
-
-        for (uint256 i = 0; i < renters.length; i++) {
-            rewardToken.transfer(renters[i], amountPerRenter);
-        }
-        emit PaySlash(machineId, renters, BASE_RESERVE_AMOUNT);
+    function payToRenterForSlashing(string memory machineId, address renter) internal {
+        rewardToken.transfer(renter, BASE_RESERVE_AMOUNT);
+        emit PaySlash(machineId, renter, BASE_RESERVE_AMOUNT);
     }
 
     function getMachinesInStaking(uint256 page, uint256 pageSize) external view returns (string[] memory) {
