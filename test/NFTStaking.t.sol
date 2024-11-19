@@ -524,7 +524,7 @@ contract StakingTest is Test {
 
         uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
         vm.prank(renter);
-        rent.rentMachine(machineId2, 14400 * 2, 1, fee);
+        rent.rentMachine(machineId2, 14400 * 2, fee);
 
         uint256 tokenSupplyAfterRent = Token(rewardTokenAddr).totalSupply();
         assertEq(tokenSupplyBeforeRent - tokenSupplyAfterRent, fee, "total supply after rent failed");
@@ -666,7 +666,7 @@ contract StakingTest is Test {
 
         uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
         vm.prank(renter);
-        rent.rentMachine(machineId2, 14400 * 2, 1, fee);
+        rent.rentMachine(machineId2, 14400 * 2, fee);
 
         passDays(1);
 

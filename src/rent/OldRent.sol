@@ -231,7 +231,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(currentStakingType != StakingType.Unknown, "machine not found");
 
         uint8 rentedGpuCount = machineId2RentedGpuCount[machineId];
-        require(rentedGpuCount + gpuCount <= precompileContract.getMachineGPUCount(machineId), "gpu count not enough");
+        require(rentedGpuCount == 0, "gpu count not enough");
 
         uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, uint256(gpuCount));
         require(rentFee >= rentFeeInFact, "rent fee not enough");
@@ -314,10 +314,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function getMachineHolder(string memory machineId) internal view returns (address) {
         return currentStakingContract.getMachineHolder(machineId);
-    }
-
-    function getMachineGPUCount(string memory machineId) external view returns (uint8) {
-        return precompileContract.getMachineGPUCount(machineId);
     }
 
     function reportMachineFault(uint256 rentId, uint256 reserveAmount) external {

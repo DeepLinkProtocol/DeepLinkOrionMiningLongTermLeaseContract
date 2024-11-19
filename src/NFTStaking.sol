@@ -291,6 +291,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         external
         nonReentrant
     {
+        require(precompileContract.getMachineGPUCount(machineId) == 1, "only one gpu per machine can stake");
         require(precompileContract.isMachineOwner(machineId, msg.sender), "not machine owner");
         if (rewardStartAtBlockNumber > 0) {
             require((block.number - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK < REWARD_DURATION, "staking ended");
@@ -339,8 +340,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
             nftToken.transferFrom(stakeholder, address(this), nftTokenIds[i]);
         }
 
-        uint8 gpuCount = precompileContract.getMachineGPUCount(machineId);
-        totalGpuCount += gpuCount;
+        totalGpuCount += 1;
         if (totalGpuCount >= rewardStartGPUThreshold) {
             rewardStartAtBlockNumber = block.number;
         }
@@ -360,12 +360,12 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
             userRewardDebt: 0,
             pendingRewards: 0,
             isRentedByUser: false,
-            gpuCount: gpuCount
+            gpuCount: 1
         });
 
         joinStaking(machineId, calcPoint, amount);
 
-        stateContract.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, amount, gpuCount, true);
+        stateContract.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, amount, 1, true);
 
         emit staked(stakeholder, machineId, currentTime);
     }

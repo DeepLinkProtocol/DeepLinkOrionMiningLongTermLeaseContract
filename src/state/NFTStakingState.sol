@@ -121,10 +121,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return precompileContract.getMachineCalcPoint(machineId);
     }
 
-    function getMachineGPUCount(string memory machineId) public view returns (uint8) {
-        return precompileContract.getMachineGPUCount(machineId);
-    }
-
     function removeStringValueOfArray(string memory addr, string[] storage arr) internal {
         uint256 index = findStringIndex(arr, addr);
         arr[index] = arr[arr.length - 1];
@@ -324,16 +320,6 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function getHolderMachineIds(address _holder) external view returns (string[] memory) {
         return stakeHolders[_holder].machineIds;
-    }
-
-    function getTotalGPUCountOfStakeHolder(address _holder) public view returns (uint256) {
-        uint256 totalGpuCount = 0;
-        for (uint256 i = 0; i < stakeHolders[_holder].machineIds.length; i++) {
-            string memory machineId = stakeHolders[_holder].machineIds[i];
-            uint256 gpuCount = precompileContract.getMachineGPUCount(machineId);
-            totalGpuCount += gpuCount;
-        }
-        return totalGpuCount;
     }
 
     function getCalcPointOfStakeHolders(address _holder) external view returns (uint256) {

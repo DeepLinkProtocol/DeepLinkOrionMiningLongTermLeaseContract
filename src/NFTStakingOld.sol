@@ -337,7 +337,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
             nftToken.transferFrom(stakeholder, address(this), nftTokenIds[i]);
         }
 
-        uint8 gpuCount = precompileContract.getMachineGPUCount(machineId);
+        uint8 gpuCount = 1;
         totalGpuCount += gpuCount;
         if (totalGpuCount >= rewardStartGPUThreshold) {
             rewardStartAtBlockNumber = block.number;

@@ -223,10 +223,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
 
-    function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint8 gpuCount, uint256 rentFee)
-        external
-    {
+    function rentMachine(string calldata machineId, uint256 rentBlockNumbers, uint256 rentFee) external {
         require(currentStakingContract.isStaking(machineId), "machine can not rent");
+        require(!isRented(machineId), "machine already rented");
         require(rentBlockNumbers % (10 * 30) == 0, "rent duration should be a multiple of 30 minutes");
 
         uint256 rentDuration = rentBlockNumbers * SECONDS_PER_BLOCK;
@@ -236,8 +235,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(currentStakingType != StakingType.Unknown, "machine not found");
 
         uint8 rentedGpuCount = machineId2RentedGpuCount[machineId];
-        require(rentedGpuCount + gpuCount <= precompileContract.getMachineGPUCount(machineId), "gpu count not enough");
+        require(rentedGpuCount == 0, "gpu count not enough");
 
+        uint8 gpuCount = uint8(1);
         uint256 rentFeeInFact = getDLCMachineRentFee(machineId, rentBlockNumbers, uint256(gpuCount));
         require(rentFee >= rentFeeInFact, "rent fee not enough");
         machineId2RentedGpuCount[machineId] += gpuCount;
@@ -319,10 +319,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function getMachineHolder(string memory machineId) internal view returns (address) {
         return currentStakingContract.getMachineHolder(machineId);
-    }
-
-    function getMachineGPUCount(string memory machineId) external view returns (uint8) {
-        return precompileContract.getMachineGPUCount(machineId);
     }
 
     function reportMachineFault(uint256 rentId, uint256 reserveAmount) external {
@@ -447,7 +443,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return stakingType2totalRentedGPUCount[StakingType.commonStaking];
     }
 
-    function isRented(string calldata machineId) external view returns (bool) {
+    function isRented(string calldata machineId) public view returns (bool) {
         return machineId2RentedGpuCount[machineId] > 0;
     }
 }
