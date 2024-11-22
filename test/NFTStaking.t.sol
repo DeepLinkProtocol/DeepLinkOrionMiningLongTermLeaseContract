@@ -667,7 +667,6 @@ contract StakingTest is Test {
         uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
         vm.prank(renter);
         rent.rentMachine(machineId2, 14400 * 2, fee);
-
         passDays(1);
 
         vm.prank(stakeHolder2);
@@ -675,8 +674,11 @@ contract StakingTest is Test {
         uint256 reward4 = reward3 / 2;
         assertGt(reward4, reward2);
 
+        uint256 renterBalanceBeforeSlash = Token(rewardTokenAddr).balanceOf(renter);
+
         vm.prank(renter);
         rent.reportMachineFault(1, 10000 * 1e18);
+
         address[] memory admins = new address[](3);
         admins[0] = admin1;
         admins[1] = admin2;
@@ -686,15 +688,15 @@ contract StakingTest is Test {
         vm.prank(admin1);
         rent.approveMachineFaultReporting(machineId2);
 
-        vm.prank(admin2);
-        rent.approveMachineFaultReporting(machineId2);
-        assertEq(staking.getPendingSlashCount(machineId2), 1);
-
-        uint256 renterBalanceBeforeSlash = Token(rewardTokenAddr).balanceOf(renter);
         uint256 holderBalanceBeforeSlashAndClaim = Token(rewardTokenAddr).balanceOf(stakeHolder2);
 
-        vm.prank(stakeHolder2);
-        staking.claim(machineId2);
+        vm.prank(admin2);
+        rent.approveMachineFaultReporting(machineId2);
+
+        //
+        //        vm.prank(stakeHolder2);
+        //        staking.claim(machineId2);
+        assertEq(staking.isStaking(machineId2), false);
 
         uint256 renterBalanceAfterSlash = Token(rewardTokenAddr).balanceOf(renter);
         uint256 holderBalanceAfterSlashAndClaim = Token(rewardTokenAddr).balanceOf(stakeHolder2);
@@ -704,8 +706,8 @@ contract StakingTest is Test {
         );
         assertGt(holderBalanceAfterSlashAndClaim, holderBalanceBeforeSlashAndClaim);
         (,,,, uint256 _totalReservedAmount,,,) = state.stakeHolders(stakeHolder2);
-        assertEq(_totalReservedAmount, staking.BASE_RESERVE_AMOUNT(), "holder2 reserved amount failed");
+        assertEq(_totalReservedAmount, 0, "holder2 reserved amount failed");
 
-        assertEq(staking.totalReservedAmount(), staking.BASE_RESERVE_AMOUNT(), "reserved amount failed");
+        assertEq(staking.totalReservedAmount(), 0, "reserved amount failed");
     }
 }

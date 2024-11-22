@@ -162,6 +162,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function setAdminsToApproveMachineFaultReporting(address[] calldata admins) external onlyOwner {
+        require(admins.length == 3, "admin length should be 3");
         adminsToApprove = admins;
     }
 
@@ -331,7 +332,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken.transferFrom(msg.sender, address(this), REPORT_RESERVE_AMOUNT);
         machineId2Reporter[rentInfo.machineId] = msg.sender;
 
-        pendingSlashMachineId2Renter[rentInfo.machineId]= msg.sender;
+        pendingSlashMachineId2Renter[rentInfo.machineId] = msg.sender;
         pendingSlashMachineIds.push(rentInfo.machineId);
         emit ReportMachineFault(rentId, rentInfo.machineId, msg.sender);
     }

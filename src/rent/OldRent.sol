@@ -215,9 +215,9 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getDLCMachineRentFee(string memory machineId, uint256 rentBlockNumbers, uint256 rentGpuNumbers)
-    public
-    view
-    returns (uint256)
+        public
+        view
+        returns (uint256)
     {
         return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
@@ -330,7 +330,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken.transferFrom(msg.sender, address(this), REPORT_RESERVE_AMOUNT);
         machineId2Reporter[rentInfo.machineId] = msg.sender;
 
-        pendingSlashMachineId2Renter[rentInfo.machineId]= msg.sender;
+        pendingSlashMachineId2Renter[rentInfo.machineId] = msg.sender;
         pendingSlashMachineIds.push(rentInfo.machineId);
         emit ReportMachineFault(rentId, rentInfo.machineId, msg.sender);
     }

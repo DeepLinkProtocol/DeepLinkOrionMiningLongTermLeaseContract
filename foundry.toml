@@ -12,6 +12,7 @@ fs_permissions = [{ access = "read", path = "./broadcast" },{ access = "read", p
 
 [etherscan]
 dbc-testnet = { key = "abc", url = "https://rpc-testnet.dbcwallet.io", chain = "19850818" }
+bsc-testnet = {key = "${BSC_TESTNET_API_KEY}", url = "https://data-seed-prebsc-1-s1.binance.org:8545", chain = "97"}
 
 
 [rpc_endpoints]
