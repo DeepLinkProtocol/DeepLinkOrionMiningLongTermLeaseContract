@@ -87,6 +87,12 @@ contract StakingTest is Test {
             abi.encodeWithSelector(IPrecompileContract.isMachineOwner.selector),
             abi.encode(true)
         );
+
+        vm.mockCall(
+            precompileContractAddr,
+            abi.encodeWithSelector(IPrecompileContract.getMachineCPURate.selector),
+            abi.encode(3600)
+        );
     }
 
     function test_mock_contract() public {

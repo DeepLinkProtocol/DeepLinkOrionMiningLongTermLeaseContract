@@ -301,6 +301,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         }
 
         address stakeholder = msg.sender;
+        console.log("msg.sender111",stakeholder);
         require(stakeholder != address(0), "invalid stakeholder address");
         require(!isStaking(machineId), "machine already staked");
         require(nftTokenIds.length > 0, "nft token ids is empty");
