@@ -522,7 +522,7 @@ contract StakingTest is Test {
 
         uint256 tokenSupplyBeforeRent = Token(rewardTokenAddr).totalSupply();
 
-        uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
+        uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2);
         vm.prank(renter);
         rent.rentMachine(machineId2, 14400 * 2, fee);
 
@@ -664,7 +664,7 @@ contract StakingTest is Test {
             abi.encode(1000 * 1e18)
         );
 
-        uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2, 1);
+        uint256 fee = rent.getDLCMachineRentFee(machineId2, 14400 * 2);
         vm.prank(renter);
         rent.rentMachine(machineId2, 14400 * 2, fee);
         passDays(1);
