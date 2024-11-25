@@ -1,7 +1,6 @@
 ### Contract:
     State:
-      -- Address:0x9bdDa3beBc7dCEB33636ee2ABD26A30191701494
-      -- ABI: https://blockscout-testnet.dbcscan.io/address/0xd59e45700Cf9A8A0Fcc675c4A332745EC0b453DD?tab=contract
+      -- Address:0xa847f0f998d1675201075746ac5a08eb10f8c01a
 
 ### Network : DeepBrainChain Testnet
 

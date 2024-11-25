@@ -1,7 +1,6 @@
 ### Contract:
     Staking: 
-      -- Address: 0xc51fc01886bff07bb02454709a7f64189ae7a95b
-      -- ABI: https://blockscout-testnet.dbcscan.io/address/0x91Ae136414F45056e1A3303E1AABCB4BE806669a?tab=contract
+      -- Address: 0x7d7d6da330ae0e9c8719ba30f4dc3d326d071276
 
 ### Network : DeepBrainChain Testnet
 
