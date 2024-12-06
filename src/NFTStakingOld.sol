@@ -18,7 +18,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
     uint8 public constant MAX_NFTS_PER_MACHINE = 20;
-//    uint256 public constant REWARD_DURATION = 60 days;
+    //    uint256 public constant REWARD_DURATION = 60 days;
     uint256 public constant REWARD_DURATION = 5 days; //todo: change to 60 days. 0.5 day only for test
     uint256 public constant LOCK_PERIOD = 180 days;
     uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
@@ -213,7 +213,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         );
 
         uint256 newLnReserved =
-                            LogarithmLibrary.LnUint256(reserveAmount > BASE_RESERVE_AMOUNT ? reserveAmount : BASE_RESERVE_AMOUNT);
+            LogarithmLibrary.LnUint256(reserveAmount > BASE_RESERVE_AMOUNT ? reserveAmount : BASE_RESERVE_AMOUNT);
 
         totalAdjustUnit -= stakeInfo.calcPoint * oldLnReserved;
         totalAdjustUnit += calcPoint * newLnReserved;
@@ -289,10 +289,10 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function stake(string calldata machineId, uint256 amount, uint256[] calldata nftTokenIds, uint256 rentId)
-    external
-    nonReentrant
+        external
+        nonReentrant
     {
-        require(precompileContract.getMachineCPURate(machineId)>=3500, "machine cpu rate must be greater than 3500");
+        require(precompileContract.getMachineCPURate(machineId) >= 3500, "machine cpu rate must be greater than 3500");
         require(precompileContract.getMachineGPUCount(machineId) == 1, "only one gpu per machine can stake");
         require(precompileContract.isMachineOwner(machineId, msg.sender), "not machine owner");
         if (rewardStartAtBlockNumber > 0) {
@@ -381,8 +381,8 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function getRewardAmountCanClaim(string memory machineId)
-    public
-    returns (uint256 canClaimAmount, uint256 lockedAmount)
+        public
+        returns (uint256 canClaimAmount, uint256 lockedAmount)
     {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         require(stakeInfo.holder == msg.sender, "not stakeholder");
@@ -397,9 +397,9 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function _getRewardDetail(uint256 totalRewardAmount)
-    internal
-    pure
-    returns (uint256 canClaimAmount, uint256 lockedAmount)
+        internal
+        pure
+        returns (uint256 canClaimAmount, uint256 lockedAmount)
     {
         uint256 releaseImmediateAmount = totalRewardAmount / 10;
         uint256 releaseLinearLockedAmount = totalRewardAmount - releaseImmediateAmount;
@@ -435,7 +435,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         if (canClaimAmount > 0) {
             if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
                 (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
-                                tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+                    tryMoveReserve(machineId, canClaimAmount, stakeInfo);
                 canClaimAmount = leftAmountCanClaim;
                 moveToReserveAmount = _moveToReserveAmount;
             }
@@ -455,7 +455,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
 
         if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
             (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
-                            tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+                tryMoveReserve(machineId, canClaimAmount, stakeInfo);
             canClaimAmount = leftAmountCanClaim;
             moveToReserveAmount = _moveToReserveAmount;
         }
@@ -496,8 +496,8 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function tryMoveReserve(string memory machineId, uint256 canClaimAmount, StakeInfo storage stakeInfo)
-    internal
-    returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)
+        internal
+        returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)
     {
         uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
         if (canClaimAmount >= leftAmountShouldReserve) {
@@ -525,8 +525,8 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     }
 
     function _calculateDailyReleaseReward(string memory machineId, bool onlyRead)
-    internal
-    returns (uint256 dailyReleaseAmount, uint256 lockedAmount)
+        internal
+        returns (uint256 dailyReleaseAmount, uint256 lockedAmount)
     {
         LockedRewardDetail[] storage lockedRewardDetails = machineId2LockedRewardDetails[machineId];
         uint256 _dailyReleaseAmount = 0;
@@ -608,8 +608,8 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     function isStaking(string calldata machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         return stakeInfo.holder != address(0) && stakeInfo.startAtBlockNumber > 0 && stakeInfo.endAtBlockNumber == 0
-        && (precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId) - rewardStartAtBlockNumber)
-        * SECONDS_PER_BLOCK >= REWARD_DURATION && stakeInfo.calcPoint > 0;
+            && (precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId) - rewardStartAtBlockNumber)
+                * SECONDS_PER_BLOCK >= REWARD_DURATION && stakeInfo.calcPoint > 0;
     }
 
     function addNFTs(string calldata machineId, uint256[] calldata nftTokenIds) external {

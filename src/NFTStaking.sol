@@ -19,7 +19,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
     uint8 public constant MAX_NFTS_PER_MACHINE = 20;
-//    uint256 public constant REWARD_DURATION = 60 days;
+    //    uint256 public constant REWARD_DURATION = 60 days;
     uint256 public constant REWARD_DURATION = 5 days; //todo: change to 60 days. 0.5 day only for test
     uint256 public constant LOCK_PERIOD = 180 days;
     uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
@@ -293,7 +293,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         external
         nonReentrant
     {
-        require(precompileContract.getMachineCPURate(machineId)>=3500, "machine cpu rate must be greater than 3500");
+        require(precompileContract.getMachineCPURate(machineId) >= 2500, "machine cpu rate must be greater than 3500");
         require(precompileContract.getMachineGPUCount(machineId) == 1, "only one gpu per machine can stake");
         require(precompileContract.isMachineOwner(machineId, msg.sender), "not machine owner");
         if (rewardStartAtBlockNumber > 0) {

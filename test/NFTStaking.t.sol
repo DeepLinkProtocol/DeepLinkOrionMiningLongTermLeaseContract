@@ -266,7 +266,7 @@ contract StakingTest is Test {
         uint256[] memory tokenIds1 = new uint256[](1);
         tokenIds2[0] = 3;
         vm.prank(stakeHolder);
-        staking.stake(machineId3, 10 * 1e18, tokenIds1, 3);
+        staking.stake(machineId3, 10 * 1e18, tokenIds2, 3);
 
         (NFTStakingState.StakeHolder[] memory topHolders1, uint256 total) = state.getTopStakeHolders(0, 10);
         assertEq(topHolders1.length, 2, "topHolders1.length");
@@ -341,7 +341,7 @@ contract StakingTest is Test {
         uint256[] memory tokenIds1 = new uint256[](1);
         tokenIds1[0] = 2;
         vm.prank(stakeHolder);
-        staking.stake(machineId2, 100000 * 1e18, tokenIds, 1);
+        staking.stake(machineId2, 100000 * 1e18, tokenIds1, 1);
 
         passDays(1);
 

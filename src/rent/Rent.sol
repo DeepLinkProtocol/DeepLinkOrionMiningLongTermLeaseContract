@@ -216,11 +216,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return lastRentId;
     }
 
-    function getDLCMachineRentFee(string memory machineId, uint256 rentBlockNumbers)
-        public
-        view
-        returns (uint256)
-    {
+    function getDLCMachineRentFee(string memory machineId, uint256 rentBlockNumbers) public view returns (uint256) {
         uint256 rentGpuNumbers = precompileContract.getMachineGPUCount(machineId);
         return precompileContract.getDLCMachineRentFee(machineId, rentBlockNumbers, rentGpuNumbers);
     }
