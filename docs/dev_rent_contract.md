@@ -2,6 +2,7 @@
     Rent: 0xb7b29861e91aaf3677861cf2c4f8f7baefa73293
 
 ### Network : DeepBrainChain Testnet
+        Explorer: https://test.dbcscan.io/
 
 #### Rent Contract Methods:
 

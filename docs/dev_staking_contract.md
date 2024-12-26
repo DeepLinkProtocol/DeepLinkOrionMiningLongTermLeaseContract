@@ -3,6 +3,7 @@
       -- Address: 0x7d7d6da330ae0e9c8719ba30f4dc3d326d071276
 
 ### Network : DeepBrainChain Testnet
+    Explorer: https://test.dbcscan.io/
 
 #### Staking Contract Methods:
 
