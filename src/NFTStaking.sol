@@ -74,6 +74,8 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
 
+    address canUpgradeAddress;
+
     event staked(address indexed stakeholder, string machineId, uint256 stakeAtBlockNumber);
     event unStaked(address indexed stakeholder, string machineId, uint256 unStakeAtBlockNumber);
     event claimed(
@@ -141,13 +143,26 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         }
         lastUpdateTime = block.timestamp;
         rewardStartAtBlockNumber = 0;
+        canUpgradeAddress = msg.sender;
     }
 
     function setThreshold(uint256 _threshold) external onlyOwner {
         rewardStartGPUThreshold = _threshold;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+        canUpgradeAddress = address(0);
+    }
+
+    function setUpgradeAddress(address addr)external onlyOwner {
+        canUpgradeAddress = addr;
+    }
+
+    function requestUpgradeAddress(address addr)external pure returns (bytes memory) {
+        bytes memory data = abi.encodeWithSignature("setUpgradeAddress(address)",addr);
+        return data;
+    }
 
     function setPrecompileContract(address _registerContract) external onlyOwner {
         precompileContract = IPrecompileContract(_registerContract);
