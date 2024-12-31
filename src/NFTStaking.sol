@@ -70,7 +70,7 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
     struct ApprovedReportInfo {
         address renter;
     }
-//        rewardToken.mint(address(this), moveToReserveAmount);
+    //        rewardToken.mint(address(this), moveToReserveAmount);
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
 
@@ -155,12 +155,12 @@ contract NFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Reent
         canUpgradeAddress = address(0);
     }
 
-    function setUpgradeAddress(address addr)external onlyOwner {
+    function setUpgradeAddress(address addr) external onlyOwner {
         canUpgradeAddress = addr;
     }
 
-    function requestUpgradeAddress(address addr)external pure returns (bytes memory) {
-        bytes memory data = abi.encodeWithSignature("setUpgradeAddress(address)",addr);
+    function requestUpgradeAddress(address addr) external pure returns (bytes memory) {
+        bytes memory data = abi.encodeWithSignature("setUpgradeAddress(address)", addr);
         return data;
     }
 

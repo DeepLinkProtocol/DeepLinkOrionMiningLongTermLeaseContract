@@ -12,8 +12,8 @@ import "./library/Ln.sol";
 import "./interface/IStateContract.sol";
 import "./interface/IRewardToken.sol";
 import "./interface/IRentContract.sol";
-import "forge-std/console.sol";
 
+/// @custom:oz-upgrades-from OldNFTStaking
 contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, ReentrancyGuardUpgradeable {
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant BASE_RESERVE_AMOUNT = 10_000 * 1e18;
@@ -70,8 +70,11 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
     struct ApprovedReportInfo {
         address renter;
     }
+    //        rewardToken.mint(address(this), moveToReserveAmount);
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renters;
+
+    address canUpgradeAddress;
 
     event staked(address indexed stakeholder, string machineId, uint256 stakeAtBlockNumber);
     event unStaked(address indexed stakeholder, string machineId, uint256 unStakeAtBlockNumber);
@@ -140,13 +143,26 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         }
         lastUpdateTime = block.timestamp;
         rewardStartAtBlockNumber = 0;
+        canUpgradeAddress = msg.sender;
     }
 
     function setThreshold(uint256 _threshold) external onlyOwner {
         rewardStartGPUThreshold = _threshold;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {
+        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+        canUpgradeAddress = address(0);
+    }
+
+    function setUpgradeAddress(address addr) external onlyOwner {
+        canUpgradeAddress = addr;
+    }
+
+    function requestUpgradeAddress(address addr) external pure returns (bytes memory) {
+        bytes memory data = abi.encodeWithSignature("setUpgradeAddress(address)", addr);
+        return data;
+    }
 
     function setPrecompileContract(address _registerContract) external onlyOwner {
         precompileContract = IPrecompileContract(_registerContract);
@@ -292,7 +308,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         external
         nonReentrant
     {
-        require(precompileContract.getMachineCPURate(machineId) >= 3500, "machine cpu rate must be greater than 3500");
+        require(precompileContract.getMachineCPURate(machineId) >= 2500, "machine cpu rate must be greater than 3500");
         require(precompileContract.getMachineGPUCount(machineId) == 1, "only one gpu per machine can stake");
         require(precompileContract.isMachineOwner(machineId, msg.sender), "not machine owner");
         if (rewardStartAtBlockNumber > 0) {
@@ -461,7 +477,7 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         }
 
         if (canClaimAmount > 0) {
-            rewardToken.mint(stakeholder, canClaimAmount);
+            rewardToken.transfer(stakeholder, canClaimAmount);
         }
 
         stakeInfo.claimedAmount += canClaimAmount;
@@ -511,7 +527,6 @@ contract OldNFTStaking is Initializable, OwnableUpgradeable, UUPSUpgradeable, Re
         // the amount should be transfer to reserve
         totalReservedAmount += moveToReserveAmount;
         stakeInfo.reservedAmount += moveToReserveAmount;
-        rewardToken.mint(address(this), moveToReserveAmount);
         stateContract.addReserveAmount(msg.sender, machineId, moveToReserveAmount);
         return (moveToReserveAmount, canClaimAmount);
     }

@@ -71,29 +71,6 @@ contract Token is
         isLockActive = true;
     }
 
-    function setMinter(address minter, uint256 amount) external onlyOwner {
-        require(amount <= maxSupply - alreadyMinted, "max supply reached");
-        minter2MintAmount[minter] = amount;
-    }
-
-    function mint(address to, uint256 amount) external {
-        uint256 totalAmount = minter2MintAmount[msg.sender];
-        require(totalAmount >= amount, "can not mint");
-        require(alreadyMinted + amount <= maxSupply, "max supply reached");
-        _mint(to, amount);
-        minter2MintAmount[msg.sender] = totalAmount - amount;
-        alreadyMinted += amount;
-    }
-
-    function setBurner(address burner) external onlyOwner {
-        burners[burner] = true;
-    }
-
-    function burn(uint256 value) public override {
-        require(burners[msg.sender], "not a valid burner");
-        super.burn(value);
-    }
-
     function claimStuckTokens(address token) external onlyOwner {
         IERC20 ERC20token = IERC20(token);
         uint256 balance = ERC20token.balanceOf(address(this));

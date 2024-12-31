@@ -74,7 +74,7 @@ contract StakingTest is Test {
         vm.prank(stakeHolder2);
         IRewardToken(rewardTokenAddr).approve(proxy, 100000 * 1e18);
         assertEq(IRewardToken(rewardTokenAddr).balanceOf(stakeHolder2), 1000000 * 1e18);
-        IRewardToken(rewardTokenAddr).setMinter(address(staking), 2000000000 * 1e18);
+        deal(rewardTokenAddr, address(staking), 100000000 * 1e18);
 
         vm.mockCall(
             precompileContractAddr,
@@ -263,7 +263,6 @@ contract StakingTest is Test {
             abi.encode(200)
         );
 
-        uint256[] memory tokenIds1 = new uint256[](1);
         tokenIds2[0] = 3;
         vm.prank(stakeHolder);
         staking.stake(machineId3, 10 * 1e18, tokenIds2, 3);
