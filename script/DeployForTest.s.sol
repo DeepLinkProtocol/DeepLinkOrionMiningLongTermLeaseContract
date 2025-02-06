@@ -22,6 +22,8 @@ contract Deploy is Script {
             address(0xb1ba8D79abecdDa60Fa2f19e7d8328A8602275a3),
             address(0xb1BA8d79AbEcDDA60Fa2f19e7D8328a8602275A4),
             address(0xb1BA8d79AbEcDDA60Fa2f19e7D8328a8602275A4),
+            address(0xb1BA8d79AbEcDDA60Fa2f19e7D8328a8602275A4),
+            address(0xb1BA8d79AbEcDDA60Fa2f19e7D8328a8602275A4),
             1
         );
         vm.stopBroadcast();

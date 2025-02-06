@@ -17,7 +17,7 @@ import "./interface/IPrecompileContract.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @custom:oz-upgrades-from OldNFTStaking
-contract NFTStaking is
+contract OldNFTStaking is
     Initializable,
     ReentrancyGuardUpgradeable,
     OwnableUpgradeable,

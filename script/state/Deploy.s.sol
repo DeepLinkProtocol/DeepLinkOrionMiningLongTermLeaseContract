@@ -37,9 +37,6 @@ contract Deploy is Script {
         address precompileContract = vm.envAddress("PRECOMPILE_CONTRACT");
         console.log("precompileContract Address:", precompileContract);
 
-        uint8 phaseLevel = uint8(vm.envUint("PHASE_LEVEL"));
-        console.log("phaseLevel:", phaseLevel);
-
         address stakingProxy = vm.envAddress("STAKING_PROXY");
         console.log("Staking Proxy Address:", stakingProxy);
 
@@ -48,9 +45,7 @@ contract Deploy is Script {
 
         proxy = Upgrades.deployUUPSProxy(
             "NFTStakingState.sol:NFTStakingState",
-            abi.encodeCall(
-                NFTStakingState.initialize, (msg.sender, precompileContract, rentProxy, stakingProxy, phaseLevel)
-            )
+            abi.encodeCall(NFTStakingState.initialize, (msg.sender, rentProxy, stakingProxy))
         );
         return (proxy, logic);
     }
