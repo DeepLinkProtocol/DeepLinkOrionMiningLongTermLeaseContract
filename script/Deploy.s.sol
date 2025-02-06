@@ -53,9 +53,6 @@ contract Deploy is Script {
         address rentProxy = vm.envAddress("RENT_PROXY");
         console.log("Rent Proxy Address:", rentProxy);
 
-        address dbcAIProxy = vm.envAddress("DBC_AI_PROXY");
-        console.log("DBC AI Proxy Address:", dbcAIProxy);
-
         address toolContractProxy = vm.envAddress("TOOL_PROXY");
         console.log("Tool contract Proxy Address:", toolContractProxy);
 
@@ -69,7 +66,6 @@ contract Deploy is Script {
                     rewardTokenContract,
                     stateProxy,
                     rentProxy,
-                    dbcAIProxy,
                     toolContractProxy,
                     precompileContract,
                     phaseLevel

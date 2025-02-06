@@ -6,7 +6,6 @@ import {Rent} from "../src/rent/Rent.sol";
 import {NFTStaking} from "../src/NFTStaking.sol";
 import {NFTStakingState} from "../src/state/NFTStakingState.sol";
 import {IPrecompileContract} from "../src/interface/IPrecompileContract.sol";
-import {IDBCAIContract} from "../src/interface/IDBCAIContract.sol";
 
 import {IRewardToken} from "../src/interface/IRewardToken.sol";
 import {ITool} from "../src/interface/ITool.sol";
@@ -22,7 +21,6 @@ contract RentTest is Test {
     IPrecompileContract public precompileContract;
     Token public rewardToken;
     DLCNode public nftToken;
-    IDBCAIContract public dbcAIContract;
 
     Tool public tool;
     address owner = address(0x01);
@@ -56,19 +54,13 @@ contract RentTest is Test {
             address(rewardToken),
             address(nftStakingState),
             address(rent),
-            address(dbcAIContract),
             address(tool),
             address(precompileContract),
             1
         );
         NFTStakingState(address(proxy2)).initialize(owner, address(rent), address(nftStaking));
         Rent(address(proxy)).initialize(
-            owner,
-            address(precompileContract),
-            address(nftStaking),
-            address(nftStakingState),
-            address(dbcAIContract),
-            address(rewardToken)
+            owner, address(precompileContract), address(nftStaking), address(nftStakingState), address(rewardToken)
         );
         deal(address(rewardToken), address(this), 10000000 * 1e18);
         deal(address(rewardToken), address(nftStaking), 200000000 * 1e18);
@@ -292,107 +284,6 @@ contract RentTest is Test {
         assertEq(_stakeTokenAmount1, 0);
     }
 
-    function testNotifyUnregister() public {
-        vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(nftStaking.dbcAIContract().getMachineState.selector),
-            abi.encode(true, true)
-        );
-        // Arrange
-        string memory machineId = "machineId";
-        stakeByOwner(machineId, nftStaking.BASE_RESERVE_AMOUNT(), 96);
-        assertEq(rent.canRent(machineId), true);
-
-        assertEq(nftStaking.totalReservedAmount(), nftStaking.BASE_RESERVE_AMOUNT());
-        assertEq(nftStaking.totalCalcPoint(), 100);
-
-        vm.prank(address(dbcAIContract));
-        rent.notify(Rent.NotifyType.MachineUnregister, machineId);
-        assertEq(nftStaking.totalReservedAmount(), nftStaking.BASE_RESERVE_AMOUNT());
-        assertEq(nftStaking.totalCalcPoint(), 0);
-
-        assertEq(nftStaking.isStaking(machineId), true);
-        claimAfter(machineId, owner, 24, false);
-
-        assertEq(rent.canRent(machineId), false);
-
-        // register back
-        vm.prank(address(dbcAIContract));
-        rent.notify(Rent.NotifyType.MachineRegister, machineId);
-        assertEq(nftStaking.totalCalcPoint(), 100);
-        assertEq(rent.canRent(machineId), true);
-
-        claimAfter(machineId, owner, 24, true);
-    }
-
-    function testNotifyOfflineOnNoRent() public {
-        vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(nftStaking.dbcAIContract().getMachineState.selector),
-            abi.encode(true, true)
-        );
-        // Arrange
-        string memory machineId = "machineId";
-        stakeByOwner(machineId, nftStaking.BASE_RESERVE_AMOUNT(), 48);
-        assertEq(rent.canRent(machineId), true);
-
-        assertEq(nftStaking.totalReservedAmount(), nftStaking.BASE_RESERVE_AMOUNT());
-        assertEq(nftStaking.totalCalcPoint(), 100);
-        assertEq(nftStaking.isStaking(machineId), true);
-
-        vm.prank(address(dbcAIContract));
-        rent.notify(Rent.NotifyType.MachineOffline, machineId);
-        assertEq(nftStaking.totalReservedAmount(), nftStaking.BASE_RESERVE_AMOUNT());
-        assertEq(nftStaking.totalCalcPoint(), 0);
-        assertEq(rent.canRent(machineId), false);
-        assertEq(nftStaking.isStaking(machineId), true);
-        claimAfter(machineId, owner, 24, false);
-
-        // re online
-        vm.prank(address(dbcAIContract));
-        rent.notify(Rent.NotifyType.MachineOnline, machineId);
-        assertEq(nftStaking.totalCalcPoint(), 100);
-        assertEq(rent.canRent(machineId), true);
-        assertEq(nftStaking.isStaking(machineId), true);
-        claimAfter(machineId, owner, 24, true);
-    }
-
-    function testNotifyOfflineOnRenting() public {
-        vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(nftStaking.dbcAIContract().getMachineState.selector),
-            abi.encode(true, true)
-        );
-        // Arrange
-        string memory machineId = "machineId";
-        stakeByOwner(machineId, nftStaking.BASE_RESERVE_AMOUNT(), 48);
-        assertEq(rent.canRent(machineId), true, "on staking");
-
-        assertEq(nftStaking.totalReservedAmount(), nftStaking.BASE_RESERVE_AMOUNT());
-        assertEq(nftStaking.totalCalcPoint(), 100);
-        assertEq(nftStaking.isStaking(machineId), true);
-
-        uint256 rentFee = 1000 * 1e18;
-        rentMachine(machineId, address(this), 1 hours, rentFee);
-        assertEq(rent.isRented(machineId), true);
-        address renter = rent.getRenter(machineId);
-        assertEq(renter, address(this));
-
-        uint256 balanceOfRenter = rewardToken.balanceOf(address(this));
-
-        vm.prank(address(dbcAIContract));
-        rent.notify(Rent.NotifyType.MachineOffline, machineId);
-        assertEq(nftStaking.totalReservedAmount(), 0);
-        assertEq(nftStaking.totalCalcPoint(), 0);
-        assertEq(rent.canRent(machineId), false, "can rent on offline");
-        assertEq(nftStaking.isStaking(machineId), false, "is staking on offline");
-        claimAfter(machineId, owner, 24, false);
-
-        uint256 balanceOfRenterAfterMachineOffline = rewardToken.balanceOf(address(this));
-
-        assertEq(balanceOfRenterAfterMachineOffline, balanceOfRenter + nftStaking.BASE_RESERVE_AMOUNT());
-    }
-
     function passHours(uint256 n) public {
         uint256 secondsToAdvance = n * 60 * 60;
         uint256 blocksToAdvance = secondsToAdvance / 6;
@@ -402,12 +293,6 @@ contract RentTest is Test {
     }
 
     function rentMachine(string memory machineId, address renter, uint256 rentSeconds, uint256 rentFee) public {
-        vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(IDBCAIContract.getMachineState.selector),
-            abi.encode(true, true)
-        );
-
         vm.mockCall(
             address(precompileContract),
             abi.encodeWithSelector(precompileContract.getDLCRentFeeByCalcPoint.selector),

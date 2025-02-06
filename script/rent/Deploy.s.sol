@@ -46,11 +46,13 @@ contract Deploy is Script {
         address rewardTokenContract = vm.envAddress("REWARD_TOKEN_CONTRACT");
         console.log("rewardTokenContract Address:", rewardTokenContract);
 
+        address dbcAIProxy = vm.envAddress("DBC_AI_PROXY");
+        console.log("DBC AI Proxy Address:", dbcAIProxy);
+
         proxy = Upgrades.deployUUPSProxy(
             "Rent.sol:Rent",
             abi.encodeCall(
-                Rent.initialize,
-                (msg.sender, precompileContract, rewardTokenContract, stakingProxy, address(0x00), address(0x00))
+                Rent.initialize, (msg.sender, precompileContract, rewardTokenContract, stakingProxy, dbcAIProxy)
             )
         );
         return (proxy, logic);

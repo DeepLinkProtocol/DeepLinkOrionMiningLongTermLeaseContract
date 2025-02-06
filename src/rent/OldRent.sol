@@ -10,7 +10,6 @@ import "../interface/IRentContract.sol";
 import "../interface/IPrecompileContract.sol";
 import "../interface/IStateContract.sol";
 import "forge-std/console.sol";
-import "../interface/IDBCAIContract.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @custom:oz-upgrades-from OldRent
@@ -23,7 +22,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     IPrecompileContract public precompileContract;
     IStakingContract public stakingContract;
     IStateContract public stateContract;
-    IDBCAIContract public dbcAIContract;
 
     uint256 public lastRentId;
     uint256 public totalBurnedAmount;
@@ -137,11 +135,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _;
     }
 
-    modifier onlyDBCAIContract() {
-        require(msg.sender == address(dbcAIContract), "only dbc AI contract");
-        _;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -152,7 +145,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         address _precompileContract,
         address _stakingContract,
         address _stateContract,
-        address _dbcAIContract,
         address _feeToken
     ) public initializer {
         __Ownable_init(_initialOwner);
@@ -161,7 +153,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         precompileContract = IPrecompileContract(_precompileContract);
         stakingContract = IStakingContract(_stakingContract);
         stateContract = IStateContract(_stateContract);
-        dbcAIContract = IDBCAIContract(_dbcAIContract);
         voteThreshold = 3;
     }
 
@@ -226,9 +217,9 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         if (!stakingContract.isStaking(machineId)) {
             return false;
         }
-        (, uint256 calcPoint,, uint256 endAtTimestamp, uint256 nextRenterCanRentAt,, bool isOnline, bool isRegistered) =
+        (, uint256 calcPoint,, uint256 endAtTimestamp, uint256 nextRenterCanRentAt,) =
             stakingContract.getMachineInfo(machineId);
-        if (!isOnline || !isRegistered || isRented(machineId) || calcPoint == 0) {
+        if (isRented(machineId) || calcPoint == 0) {
             return false;
         }
 
@@ -245,7 +236,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         view
         returns (uint256 availableRentHours, uint256 reservedAmount, uint256 rentFeePerHour)
     {
-        (,,, uint256 endAt,, uint256 _reservedAmount,,) = stakingContract.getMachineInfo(machineId);
+        (,,, uint256 endAt,, uint256 _reservedAmount) = stakingContract.getMachineInfo(machineId);
         uint256 rentFee = getMachinePrice(machineId, 1 hours / SECONDS_PER_BLOCK);
 
         if (isRented(machineId)) {
@@ -269,7 +260,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(!isRented(machineId), "machine already rented");
 
         require(rentSeconds >= 10 minutes, "rent duration should be greater than 10 minutes");
-        (address machineHolder,,, uint256 endAtTimestamp,,,,) = stakingContract.getMachineInfo(machineId);
+        (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt), 60 days);
         require(rentSeconds <= maxRentDuration, "rent duration should be less than max rent duration");
@@ -338,7 +329,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(isRented(machineId), "Machine is not currently rented");
         require(additionalRentSeconds >= 10 minutes, "Additional rent duration should be greater than 10 minutes");
 
-        (address machineHolder,,, uint256 endAtTimestamp,,,,) = stakingContract.getMachineInfo(machineId);
+        (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt), 60 days);
         require(additionalRentSeconds <= maxRentDuration, "rent duration should be less than max rent duration");
@@ -394,7 +385,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getMachineHolderAndCalcPoint(string memory machineId) internal view returns (address, uint256) {
-        (address holder, uint256 calcPoint,,,,,,) = stakingContract.getMachineInfo(machineId);
+        (address holder, uint256 calcPoint,,,,) = stakingContract.getMachineInfo(machineId);
         return (holder, calcPoint);
     }
 
@@ -544,54 +535,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 rentId = machineId2RentId[machineId];
         address renter = rentId2RentInfo[rentId].renter;
         return renter;
-    }
-
-    function notify(NotifyType tp, string calldata machineId) external onlyDBCAIContract returns (bool) {
-        (, uint256 calcPoint,,,, uint256 reservedAmount,, bool isRegistered) = stakingContract.getMachineInfo(machineId);
-
-        uint256 calcPointInFact = precompileContract.getMachineCalcPoint(machineId);
-        bool isStaking = stakingContract.isStaking(machineId);
-
-        if (tp == NotifyType.ContractRegister) {
-            registered = true;
-        } else if (tp == NotifyType.MachineRegister) {
-            if (calcPoint == 0 && isStaking) {
-                // staked before
-                stakingContract.joinStaking(machineId, calcPointInFact, reservedAmount);
-            }
-            emit MachineRegister(machineId, calcPointInFact);
-        } else if (tp == NotifyType.MachineUnregister) {
-            if (isStaking) {
-                stakingContract.joinStaking(machineId, 0, reservedAmount);
-            }
-            emit MachineUnregister(machineId, calcPoint);
-        } else if (tp == NotifyType.MachineOffline) {
-            uint256 rentId = machineId2RentId[machineId];
-            RentInfo memory rentInfo = rentId2RentInfo[rentId];
-            if (isStaking && isRegistered) {
-                if (rentInfo.renter != address(0)) {
-                    SlashInfo memory slashInfo = newSlashInfo(
-                        rentInfo.stakeHolder,
-                        rentInfo.machineId,
-                        SLASH_AMOUNT,
-                        rentInfo.rentStatTime,
-                        rentInfo.rentEndTime,
-                        block.timestamp - rentInfo.rentStatTime,
-                        SlashType.Offline,
-                        rentInfo.renter
-                    );
-                    addSlashInfoAndReport(slashInfo);
-                } else {
-                    stakingContract.joinStaking(machineId, 0, reservedAmount);
-                }
-            }
-        } else if (tp == NotifyType.MachineOnline) {
-            if (calcPoint == 0 && isStaking) {
-                // staked before
-                stakingContract.joinStaking(machineId, calcPointInFact, reservedAmount);
-            }
-        }
-        return true;
     }
 
     function getSlashInfosByOwner(address stakeHolder, uint256 pageNumber, uint256 pageSize)

@@ -1,16 +1,6 @@
 pragma solidity ^0.8.20;
 
 interface IStakingContract {
-    enum NotifyType {
-        ContractRegister,
-        MachineRegister,
-        MachineUnregister,
-        MachineOnline,
-        MachineOffline
-    }
-
-    function notify(NotifyType tp, string calldata machineId) external returns (bool);
-
     function isStaking(string calldata machineId) external view returns (bool);
     function rentMachine(string calldata machineId) external;
     function endRentMachine(string calldata machineId) external;
@@ -24,9 +14,7 @@ interface IStakingContract {
             uint256 startAtTimestamp,
             uint256 endAtTimestamp,
             uint256 nextRenterCanRentAt,
-            uint256 reservedAmount,
-            bool isOnline,
-            bool isRegistered
+            uint256 reservedAmount
         );
     function getTotalGPUCountInStaking() external view returns (uint256);
     function getLeftGPUCountToStartReward() external view returns (uint256);

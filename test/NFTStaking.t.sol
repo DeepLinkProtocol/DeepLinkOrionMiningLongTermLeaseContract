@@ -6,7 +6,6 @@ import {Rent} from "../src/rent/Rent.sol";
 import {NFTStaking} from "../src/NFTStaking.sol";
 import {NFTStakingState} from "../src/state/NFTStakingState.sol";
 import {IPrecompileContract} from "../src/interface/IPrecompileContract.sol";
-import {IDBCAIContract} from "../src/interface/IDBCAIContract.sol";
 
 import {IRewardToken} from "../src/interface/IRewardToken.sol";
 import {ITool} from "../src/interface/ITool.sol";
@@ -22,7 +21,6 @@ contract StakingTest is Test {
     IPrecompileContract public precompileContract;
     Token public rewardToken;
     DLCNode public nftToken;
-    IDBCAIContract public dbcAIContract;
 
     Tool public tool;
     address owner = address(0x01);
@@ -58,19 +56,13 @@ contract StakingTest is Test {
             address(rewardToken),
             address(nftStakingState),
             address(rent),
-            address(dbcAIContract),
             address(tool),
             address(precompileContract),
             1
         );
         NFTStakingState(address(proxy2)).initialize(owner, address(rent), address(nftStaking));
         Rent(address(proxy)).initialize(
-            owner,
-            address(precompileContract),
-            address(nftStaking),
-            address(nftStakingState),
-            address(dbcAIContract),
-            address(rewardToken)
+            owner, address(precompileContract), address(nftStaking), address(nftStakingState), address(rewardToken)
         );
         deal(address(rewardToken), address(this), 10000000 * 1e18);
         deal(address(rewardToken), address(nftStaking), 200000000 * 1e18);

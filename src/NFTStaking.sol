@@ -8,7 +8,6 @@ import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol
 import "./interface/IStateContract.sol";
 import "./interface/IRewardToken.sol";
 import "./interface/IRentContract.sol";
-import "./interface/IDBCAIContract.sol";
 import "./interface/ITool.sol";
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -36,7 +35,6 @@ contract NFTStaking is
 
     IStateContract public stateContract;
     IRentContract public rentContract;
-    IDBCAIContract public dbcAIContract;
     ITool public toolContract;
     IERC1155 public nftToken;
     IRewardToken public rewardToken;
@@ -167,7 +165,6 @@ contract NFTStaking is
         address _rewardToken,
         address _stateContract,
         address _rentContract,
-        address _dbcAIContract,
         address _toolContract,
         address _precompileContract,
         uint8 phaseLevel
@@ -180,7 +177,6 @@ contract NFTStaking is
         nftToken = IERC1155(_nftToken);
         stateContract = IStateContract(_stateContract);
         rentContract = IRentContract(_rentContract);
-        dbcAIContract = IDBCAIContract(_dbcAIContract);
         precompileContract = IPrecompileContract(_precompileContract);
 
         if (phaseLevel == 1) {
@@ -252,10 +248,6 @@ contract NFTStaking is
             require(dlcClientWalletAddress[addrs[i]] == false, "address already added");
             dlcClientWalletAddress[addrs[i]] = true;
         }
-    }
-
-    function setDBCAIContract(address addr) external onlyOwner {
-        dbcAIContract = IDBCAIContract(addr);
     }
 
     function addDLCToStake(string memory machineId, uint256 amount) external nonReentrant {
@@ -715,9 +707,7 @@ contract NFTStaking is
             uint256 startAtTimestamp,
             uint256 endAtTimestamp,
             uint256 nextRenterCanRentAt,
-            uint256 reservedAmount,
-            bool isOnline,
-            bool isRegistered
+            uint256 reservedAmount
         )
     {
         StakeInfo memory info = machineId2StakeInfos[machineId];
@@ -726,16 +716,13 @@ contract NFTStaking is
         if (rentEndAtBlock > block.number) {
             rentEndAtTimestamp = (rentEndAtBlock - block.number) * SECONDS_PER_BLOCK + block.timestamp;
         }
-        (bool _isOnline, bool _isRegistered) = dbcAIContract.getMachineState(machineId, PROJECT_NAME, STAKING_TYPE);
         return (
             info.holder,
             info.calcPoint,
             info.startAtTimestamp,
             rentEndAtTimestamp,
             info.nextRenterCanRentAt,
-            info.reservedAmount,
-            _isOnline,
-            _isRegistered
+            info.reservedAmount
         );
     }
 
@@ -784,9 +771,6 @@ contract NFTStaking is
     //
     //        return true;
     //    }
-    function notify(IRentContract.NotifyType tp, string calldata machineId) external returns (bool) {
-        return rentContract.notify(tp, machineId);
-    }
 
     function _getRewardDetail(uint256 totalRewardAmount)
         internal
