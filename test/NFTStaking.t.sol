@@ -210,7 +210,7 @@ contract StakingTest is Test {
 
         passDays(1);
         (uint256 release, uint256 locked) = nftStaking.calculateReleaseReward(machineId2);
-        assertEq(release, ((locked + release) * 1 days / nftStaking.LOCK_PERIOD()), "111");
+        assertEq(release, ((locked + release) * 3 days / nftStaking.LOCK_PERIOD()), "111");
 
         uint256[] memory tokenIds3 = new uint256[](1);
         tokenIds3[0] = 10;

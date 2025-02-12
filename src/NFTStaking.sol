@@ -90,7 +90,7 @@ contract NFTStaking is
 
     mapping(address => string[]) public holder2MachineIds;
 
-    mapping(string => LockedRewardDetail[]) public machineId2LockedRewardDetails;
+    mapping(string => LockedRewardDetail) public machineId2LockedRewardDetail;
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
 
@@ -270,7 +270,6 @@ contract NFTStaking is
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
         ApprovedReportInfo[] memory approvedReportInfos = pendingSlashedMachineId2Renter[machineId];
-
         if (approvedReportInfos.length > 0) {
             require(
                 amount >= BASE_RESERVE_AMOUNT * approvedReportInfos.length, "amount must be greater than slash amount"
@@ -356,7 +355,14 @@ contract NFTStaking is
         });
 
         _joinStaking(machineId, calcPoint, 0);
-
+        if (machineId2LockedRewardDetail[machineId].lockTime == 0){
+            machineId2LockedRewardDetail[machineId] = LockedRewardDetail({
+                totalAmount: 0,
+                lockTime: currentTime,
+                unlockTime: currentTime + LOCK_PERIOD,
+                claimedAmount: 0
+            });
+        }
         stateContract.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
 
@@ -373,7 +379,7 @@ contract NFTStaking is
     }
 
     function getRewardInfo(string memory machineId)
-        public
+        public view
         returns (uint256 newRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
     {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
@@ -454,14 +460,7 @@ contract NFTStaking is
         stateContract.addClaimedRewardAmount(msg.sender, machineId, rewardAmount + _dailyReleaseAmount, canClaimAmount);
 
         if (lockedAmount > 0) {
-            machineId2LockedRewardDetails[machineId].push(
-                LockedRewardDetail({
-                    totalAmount: lockedAmount,
-                    lockTime: currentTimestamp,
-                    unlockTime: currentTimestamp + LOCK_PERIOD,
-                    claimedAmount: 0
-                })
-            );
+            machineId2LockedRewardDetail[machineId].totalAmount += lockedAmount;
         }
 
         emit claimed(stakeholder, machineId, canClaimAmount, moveToReserveAmount, paidSlash);
@@ -527,63 +526,45 @@ contract NFTStaking is
     }
 
     function calculateReleaseReward(string memory machineId)
-        public view
-        returns (uint256 dailyReleaseAmount, uint256 lockedAmount)
+    public
+    view
+    returns (uint256 releaseAmount, uint256 lockedAmount)
     {
-        LockedRewardDetail[] storage lockedRewardDetails = machineId2LockedRewardDetails[machineId];
-        uint256 releaseAmount = 0;
-        uint256 totalLockedAmount = 0;
-        for (uint256 i = 0; i < lockedRewardDetails.length; i++) {
-            uint256 total = lockedRewardDetails[i].totalAmount;
-            uint256 claimedAmount = lockedRewardDetails[i].claimedAmount;
-
-            if (total == claimedAmount) {
-                continue;
-            }
-
-            uint256 currentTimestamp = block.timestamp;
-            if (currentTimestamp >= lockedRewardDetails[i].unlockTime) {
-                releaseAmount += total - claimedAmount;
-            } else {
-                uint256 totalUnlocked = (currentTimestamp - lockedRewardDetails[i].lockTime) * total / LOCK_PERIOD;
-                uint256 newUnlocked = totalUnlocked - claimedAmount;
-                releaseAmount += newUnlocked;
-            }
-            totalLockedAmount += total;
+        LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
+        if (lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
+            return (0, 0);
         }
-        return (releaseAmount, totalLockedAmount - releaseAmount);
+
+        if (block.timestamp > lockedRewardDetail.unlockTime){
+            releaseAmount = lockedRewardDetail.totalAmount - lockedRewardDetail.claimedAmount;
+            return (releaseAmount, 0);
+        }
+
+        uint256 totalUnlocked = (block.timestamp  - lockedRewardDetail.lockTime) * lockedRewardDetail.totalAmount / LOCK_PERIOD;
+        releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
+        return (releaseAmount,lockedRewardDetail.totalAmount - releaseAmount);
     }
 
     function calculateReleaseRewardAndUpdate(string memory machineId)
     internal
-    returns (uint256 dailyReleaseAmount, uint256 lockedAmount)
+    returns (uint256 releaseAmount, uint256 lockedAmount)
     {
-        LockedRewardDetail[] storage lockedRewardDetails = machineId2LockedRewardDetails[machineId];
-        uint256 releaseAmount = 0;
-        uint256 totalLockedAmount = 0;
-        for (uint256 i = 0; i < lockedRewardDetails.length; i++) {
-            uint256 total = lockedRewardDetails[i].totalAmount;
-            uint256 claimedAmount = lockedRewardDetails[i].claimedAmount;
-
-            if (total == claimedAmount) {
-                continue;
-            }
-
-            uint256 currentTimestamp = block.timestamp;
-            if (currentTimestamp >= lockedRewardDetails[i].unlockTime) {
-                releaseAmount += total - claimedAmount;
-                lockedRewardDetails[i].claimedAmount = lockedRewardDetails[i].totalAmount;
-            } else {
-                uint256 totalUnlocked = (currentTimestamp - lockedRewardDetails[i].lockTime) * total / LOCK_PERIOD;
-                uint256 newUnlocked = totalUnlocked - claimedAmount;
-                releaseAmount += newUnlocked;
-                lockedRewardDetails[i].claimedAmount += newUnlocked;
-            }
-            totalLockedAmount += total;
+        LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
+        if (lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
+            return (0, 0);
         }
-        return (releaseAmount, totalLockedAmount - releaseAmount);
-    }
 
+        if (block.timestamp > lockedRewardDetail.unlockTime){
+            releaseAmount = lockedRewardDetail.totalAmount - lockedRewardDetail.claimedAmount;
+            lockedRewardDetail.claimedAmount = lockedRewardDetail.totalAmount;
+            return (releaseAmount, 0);
+        }
+
+        uint256 totalUnlocked = (block.timestamp  - lockedRewardDetail.lockTime) * lockedRewardDetail.totalAmount / LOCK_PERIOD;
+        releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
+        lockedRewardDetail.claimedAmount += releaseAmount;
+        return (releaseAmount,lockedRewardDetail.totalAmount - releaseAmount);
+    }
 
     //    function unStakeAndClaim(string calldata machineId) public nonReentrant {
     //        address stakeholder = msg.sender;
