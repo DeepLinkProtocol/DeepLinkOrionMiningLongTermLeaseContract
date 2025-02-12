@@ -63,8 +63,9 @@ contract RentTest is Test {
             owner, address(precompileContract), address(nftStaking), address(nftStakingState), address(rewardToken)
         );
         deal(address(rewardToken), address(this), 10000000 * 1e18);
-        deal(address(rewardToken), address(nftStaking), 200000000 * 1e18);
-
+        deal(address(rewardToken), owner, 360000000 * 1e18);
+        rewardToken.approve(address(nftStaking), 360000000 * 1e18);
+        nftStaking.depositReward(360000000 * 1e18);
         nftStaking.setRewardStartAt(block.timestamp);
 
         vm.stopPrank();

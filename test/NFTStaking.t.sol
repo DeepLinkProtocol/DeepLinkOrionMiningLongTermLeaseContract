@@ -65,8 +65,11 @@ contract StakingTest is Test {
             owner, address(precompileContract), address(nftStaking), address(nftStakingState), address(rewardToken)
         );
         deal(address(rewardToken), address(this), 10000000 * 1e18);
-        deal(address(rewardToken), address(nftStaking), 200000000 * 1e18);
+        deal(address(rewardToken), owner, 360000000 * 1e18);
+        rewardToken.approve(address(nftStaking), 360000000 * 1e18);
+        nftStaking.depositReward(360000000 * 1e18);
 
+        nftStaking.setRewardStartAt(block.timestamp);
         nftStaking.setRewardStartAt(block.timestamp);
 
         vm.stopPrank();
@@ -120,6 +123,7 @@ contract StakingTest is Test {
         nftTokensBalance[0] = 1;
         uint256 totalCalcPointBefore = nftStaking.totalCalcPoint();
         nftStaking.stake(machineId, nftTokens, nftTokensBalance, stakeHours);
+        assertEq(nftToken.balanceOf(_owner, 1), 0, "owner erc1155 failed");
         nftStaking.addDLCToStake(machineId, reserveAmount);
         vm.stopPrank();
         uint256 totalCalcPoint = nftStaking.totalCalcPoint();
@@ -205,7 +209,7 @@ contract StakingTest is Test {
         assertEq(reward4, 0, "machineId2 get reward  failed after claim");
 
         passDays(1);
-        (uint256 release, uint256 locked) = nftStaking.calculateReleaseReward(machineId2, true);
+        (uint256 release, uint256 locked) = nftStaking.calculateReleaseReward(machineId2);
         assertEq(release, ((locked + release) * 1 days / nftStaking.LOCK_PERIOD()), "111");
 
         uint256[] memory tokenIds3 = new uint256[](1);
@@ -227,6 +231,19 @@ contract StakingTest is Test {
         assertEq(gpuCount, 2, "gpuCount");
 
         assertEq(totalReservedAmount, 10 * 1e18);
+    }
+
+    function testUnStake() public {
+        address stakeHolder = owner;
+        string memory machineId = "machineId";
+        stakeByOwner(machineId, 100000, 480, stakeHolder);
+
+        passHours(480);
+
+        vm.startPrank(stakeHolder);
+        nftStaking.unStake(machineId);
+        vm.stopPrank();
+        assertEq(nftToken.balanceOf(stakeHolder, 1), 1, "owner erc1155 failed");
     }
 
     function claimAfter(string memory machineId, address _owner, uint256 hour, bool shouldGetMore) internal {

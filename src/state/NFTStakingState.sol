@@ -68,6 +68,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 totalClaimedRewardAmount;
         uint256 releasedRewardAmount;
     }
+    address public canUpgradeAddress;
 
     modifier onlyNftStakingAddress() {
         require(msg.sender == address(stakingContract), "Only NFTStakingContractAddress can call this function");
@@ -85,6 +86,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         rentContract = IRentContract(_rentContract);
         stakingContract = IStakingContract(_stakingContract);
+        canUpgradeAddress = msg.sender;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -92,7 +94,10 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
+        require(newImplementation != address(0), "new implementation is the zero address");
+        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+    }
 
     function setStakingContract(address caller) external onlyOwner {
         stakingContract = IStakingContract(caller);
@@ -367,7 +372,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
     }
 
-    function removeMachineIdByValueUnordered(string memory machineId) public {
+    function removeMachineIdByValueUnordered(string memory machineId) internal {
         uint256 index = findMachineIdIndex(machineId);
 
         machineIds[index] = machineIds[machineIds.length - 1];

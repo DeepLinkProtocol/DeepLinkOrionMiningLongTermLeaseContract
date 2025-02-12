@@ -103,6 +103,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     mapping(address => RentGPUInfo) public stakeHolder2RentGPUInfo;
     mapping(string => uint256) public machineId2LastRentEndBlock;
+    address public canUpgradeAddress;
 
     event RentMachine(uint256 rentId, string machineId, uint256 rentEndTime, uint8 gpuCount, address renter);
     event RenewRent(uint256 rentId, uint256 additionalRentSeconds, uint256 additionalRentFee, address renter);
@@ -154,9 +155,14 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         stakingContract = IStakingContract(_stakingContract);
         stateContract = IStateContract(_stateContract);
         voteThreshold = 3;
+        canUpgradeAddress = msg.sender;
     }
 
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
+    function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
+        require(newImplementation != address(0), "new implementation is the zero address");
+        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+    }
+
 
     function setAdminsToApproveMachineFaultReporting(address[] calldata admins) external onlyOwner {
         require(admins.length == 5, "admins length should be 5");
@@ -175,6 +181,11 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     function setPrecompileContract(address _precompileContract) external onlyOwner {
         require(_precompileContract != address(0x0), "precompile contract address should not be 0x0");
         precompileContract = IPrecompileContract(_precompileContract);
+    }
+
+
+    function setStateContract(address _rentContract) external onlyOwner {
+        stateContract = IStateContract(_rentContract);
     }
 
     function findUintIndex(uint256[] memory arr, uint256 v) internal pure returns (uint256) {
