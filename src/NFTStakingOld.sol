@@ -14,6 +14,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "./interface/IPrecompileContract.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "./library/RewardCalculatorLib.sol";
 
 /// @custom:oz-upgrades-from OldNFTStaking
 contract OldNFTStaking is
@@ -23,15 +24,14 @@ contract OldNFTStaking is
     UUPSUpgradeable,
     IERC1155Receiver
 {
-    string public constant PROJECT_NAME = "DeepLink";
+    string public constant PROJECT_NAME = "deeplink";
+    uint256 public constant INIT_REWARD_AMOUNT = 1_000_000_000 * 1e18;
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant BASE_RESERVE_AMOUNT = 10000 * 1e18;
     uint256 public constant REWARD_DURATION = 60 days;
-    uint8 public constant MAX_NFTS_PER_MACHINE = 50;
+    uint8 public constant MAX_NFTS_PER_MACHINE = 20;
     //        uint256 public constant REWARD_DURATION = 0.5 days; //todo: change to 60 days. 0.5 day only for test
     uint256 public constant LOCK_PERIOD = 180 days;
-    uint8 public constant DAILY_UNLOCK_RATE = 5; // 0.5% = 5/1000
-    StakingType public constant STAKING_TYPE = StakingType.LongTerm;
 
     IStateContract public stateContract;
     IRentContract public rentContract;
@@ -40,26 +40,20 @@ contract OldNFTStaking is
     IRewardToken public rewardToken;
     IPrecompileContract public precompileContract;
 
-    address public canUpgradeAddress;
-
+    address private canUpgradeAddress;
+    uint256 public totalDistributedRewardAmount;
     uint256 public rewardStartGPUThreshold;
     uint256 public rewardStartAtTimestamp;
     uint256 public rewardStartAtBlockNumber;
 
+    uint256 public initRewardAmount;
     uint256 public totalReservedAmount;
     uint256 public totalCalcPoint;
-    uint256 public totalGpuCount;
+    uint256 public totalStakedGpuCount;
+    uint256 public totalStakingGpuCount;
 
     uint256 public totalAdjustUnit;
     uint256 public dailyRewardAmount;
-    uint256 public rewardPerUnit;
-    uint256 public lastUpdateTime;
-
-    enum StakingType {
-        ShortTerm,
-        LongTerm,
-        Free
-    }
 
     struct LockedRewardDetail {
         uint256 totalAmount;
@@ -83,23 +77,34 @@ contract OldNFTStaking is
         uint256[] tokenIdBalances;
         uint256 nftCount;
         uint256 claimedAmount;
-        uint256 pendingRewards;
-        uint256 userRewardDebt;
         bool isRentedByUser;
         uint256 gpuCount;
         uint256 nextRenterCanRentAt;
         uint256 rentId;
     }
 
+    struct MachineInfoForDBCScan {
+        bool isStaking;
+        string gpuType;
+        uint8 gpuCount;
+        uint256 mem;
+        string projectName;
+        uint256 totalRewardAmount;
+        uint256 claimedRewardAmount;
+        uint256 lockedRewardAmount;
+    }
+
     mapping(address => bool) public dlcClientWalletAddress;
 
     mapping(address => string[]) public holder2MachineIds;
 
-    mapping(string => LockedRewardDetail[]) public machineId2LockedRewardDetails;
+    mapping(string => LockedRewardDetail) public machineId2LockedRewardDetail;
 
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
 
     mapping(string => StakeInfo) public machineId2StakeInfos;
+    mapping(string => RewardCalculatorLib.UserRewards) public machineId2StakeUnitRewards;
+    RewardCalculatorLib.RewardsPerShare public rewardsPerCalcPoint;
 
     event staked(address indexed stakeholder, string machineId);
     event reserveDLC(string machineId, uint256 amount);
@@ -116,6 +121,7 @@ contract OldNFTStaking is
     event RentMachine(string machineId);
     event EndRentMachine(string machineId);
     event ReportMachineFault(string machineId, address renter);
+    event DepositReward(uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -180,21 +186,23 @@ contract OldNFTStaking is
         precompileContract = IPrecompileContract(_precompileContract);
 
         if (phaseLevel == 1) {
-            dailyRewardAmount = 6000000 * 1e18;
             rewardStartGPUThreshold = 500;
+            initRewardAmount = 360000000 ether;
         }
         if (phaseLevel == 2) {
-            dailyRewardAmount = 8000000 * 1e18;
             rewardStartGPUThreshold = 1000;
+            initRewardAmount = 480000000 ether;
         }
         if (phaseLevel == 3) {
-            dailyRewardAmount = 19330000 * 1e18;
             rewardStartGPUThreshold = 2000;
+            initRewardAmount = 116000000 ether;
         }
 
-        lastUpdateTime = block.timestamp;
+        dailyRewardAmount = initRewardAmount / 60;
+
         rewardStartAtTimestamp = 0;
         rewardStartAtBlockNumber = 0;
+        canUpgradeAddress = msg.sender;
 
         setToolContract(ITool(_toolContract));
     }
@@ -210,6 +218,10 @@ contract OldNFTStaking is
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
         require(newImplementation != address(0), "new implementation is the zero address");
         require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+    }
+
+    function getUpgradeAddress() external view onlyOwner returns (address) {
+        return canUpgradeAddress;
     }
 
     function setUpgradeAddress(address addr) external onlyOwner {
@@ -251,11 +263,13 @@ contract OldNFTStaking is
     }
 
     function addDLCToStake(string memory machineId, uint256 amount) external nonReentrant {
-        require(isStaking(machineId));
+        require(isStaking(machineId), "machine not staked");
+        if (amount == 0) {
+            return;
+        }
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
         ApprovedReportInfo[] memory approvedReportInfos = pendingSlashedMachineId2Renter[machineId];
-
         if (approvedReportInfos.length > 0) {
             require(
                 amount >= BASE_RESERVE_AMOUNT * approvedReportInfos.length, "amount must be greater than slash amount"
@@ -295,6 +309,7 @@ contract OldNFTStaking is
         require(!isStaking(machineId), "machine already staked");
         require(nftTokenIds.length > 0, "nft token ids is empty");
         uint256 nftCount = getNFTCount(nftTokenIdBalances);
+        require(nftCount <= MAX_NFTS_PER_MACHINE, "nft count must be less than or equal to 20");
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
         if (rewardStartAtTimestamp > 0) {
@@ -311,10 +326,11 @@ contract OldNFTStaking is
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
-        totalGpuCount += gpuCount;
-        if (totalGpuCount >= rewardStartGPUThreshold) {
+        totalStakedGpuCount += gpuCount;
+        totalStakedGpuCount += gpuCount;
+        if (totalStakedGpuCount >= rewardStartGPUThreshold) {
             rewardStartAtTimestamp = currentTime;
-            lastUpdateTime = currentTime;
+            rewardsPerCalcPoint.lastUpdated = currentTime;
             rewardStartAtBlockNumber = block.number;
         }
 
@@ -330,8 +346,6 @@ contract OldNFTStaking is
             nftCount: nftCount,
             holder: stakeholder,
             claimedAmount: 0,
-            userRewardDebt: 0,
-            pendingRewards: 0,
             isRentedByUser: false,
             gpuCount: gpuCount,
             nextRenterCanRentAt: currentTime,
@@ -339,7 +353,14 @@ contract OldNFTStaking is
         });
 
         _joinStaking(machineId, calcPoint, 0);
-
+        if (machineId2LockedRewardDetail[machineId].lockTime == 0) {
+            machineId2LockedRewardDetail[machineId] = LockedRewardDetail({
+                totalAmount: 0,
+                lockTime: currentTime,
+                unlockTime: currentTime + LOCK_PERIOD,
+                claimedAmount: 0
+            });
+        }
         stateContract.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
 
@@ -357,16 +378,14 @@ contract OldNFTStaking is
 
     function getRewardInfo(string memory machineId)
         public
+        view
         returns (uint256 newRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
     {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
-        uint256 endAtTimestamp = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
-        uint256 currentRewardPerUnit = getCurrentRewardRate(getRewardEndAtTimestamp(endAtTimestamp));
-        uint256 totalRewardAmount = calculateRewards(machineId, currentRewardPerUnit);
-
+        uint256 totalRewardAmount = calculateRewards(machineId);
         (uint256 _canClaimAmount, uint256 _lockedAmount) = _getRewardDetail(totalRewardAmount);
-        (uint256 dailyReleaseAmount, uint256 lockedAmountBefore) = calculateReleaseReward(machineId, true);
+        (uint256 dailyReleaseAmount, uint256 lockedAmountBefore) = calculateReleaseReward(machineId);
 
         return (
             totalRewardAmount,
@@ -388,16 +407,18 @@ contract OldNFTStaking is
         require(rewardStart(), "reward not start yet");
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         address stakeholder = stakeInfo.holder;
-        uint256 canClaimAmount = 0;
-        uint256 lockedAmount = 0;
-        uint256 rewardAmount = 0;
         uint256 currentTimestamp = block.timestamp;
 
         bool _isStaking = isStaking(machineId);
-        rewardAmount = getRewardsAndUpdateGlobalRewardRate(machineId);
-        (canClaimAmount, lockedAmount) = _getRewardDetail(rewardAmount);
 
-        (uint256 _dailyReleaseAmount,) = calculateReleaseReward(machineId, false);
+        uint256 rewardAmount = calculateRewards(machineId);
+
+        _updateRewardPerCalcPoint();
+        machineId2StakeUnitRewards[machineId].accumulated = 0;
+
+        (uint256 canClaimAmount, uint256 lockedAmount) = _getRewardDetail(rewardAmount);
+
+        (uint256 _dailyReleaseAmount,) = calculateReleaseRewardAndUpdate(machineId);
         canClaimAmount += _dailyReleaseAmount;
 
         ApprovedReportInfo[] storage approvedReportInfos = pendingSlashedMachineId2Renter[machineId];
@@ -431,20 +452,13 @@ contract OldNFTStaking is
         if (canClaimAmount > 0) {
             rewardToken.transfer(stakeholder, canClaimAmount);
         }
-
+        totalDistributedRewardAmount += canClaimAmount;
         stakeInfo.claimedAmount += canClaimAmount;
         stakeInfo.lastClaimAtTimestamp = currentTimestamp;
-        stateContract.addClaimedRewardAmount(msg.sender, machineId, rewardAmount + dailyRewardAmount, canClaimAmount);
+        stateContract.addClaimedRewardAmount(msg.sender, machineId, rewardAmount + _dailyReleaseAmount, canClaimAmount);
 
         if (lockedAmount > 0) {
-            machineId2LockedRewardDetails[machineId].push(
-                LockedRewardDetail({
-                    totalAmount: lockedAmount,
-                    lockTime: currentTimestamp,
-                    unlockTime: currentTimestamp + LOCK_PERIOD,
-                    claimedAmount: 0
-                })
-            );
+            machineId2LockedRewardDetail[machineId].totalAmount += lockedAmount;
         }
 
         emit claimed(stakeholder, machineId, canClaimAmount, moveToReserveAmount, paidSlash);
@@ -454,11 +468,12 @@ contract OldNFTStaking is
         return holder2MachineIds[holder];
     }
 
-    function getAllRewardInfo()
+    function getAllRewardInfo(address holder)
         external
+        view
         returns (uint256 availableRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
     {
-        string[] memory machineIds = holder2MachineIds[msg.sender];
+        string[] memory machineIds = holder2MachineIds[holder];
         for (uint256 i = 0; i < machineIds.length; i++) {
             (uint256 _availableRewardAmount, uint256 _canClaimAmount, uint256 _lockedAmount, uint256 _claimedAmount) =
                 getRewardInfo(machineIds[i]);
@@ -509,38 +524,47 @@ contract OldNFTStaking is
         return (moveToReserveAmount, canClaimAmount);
     }
 
-    function calculateReleaseReward(string memory machineId, bool onlyRead)
+    function calculateReleaseReward(string memory machineId)
         public
-        returns (uint256 dailyReleaseAmount, uint256 lockedAmount)
+        view
+        returns (uint256 releaseAmount, uint256 lockedAmount)
     {
-        LockedRewardDetail[] storage lockedRewardDetails = machineId2LockedRewardDetails[machineId];
-        uint256 releaseAmount = 0;
-        uint256 totalLockedAmount = 0;
-        for (uint256 i = 0; i < lockedRewardDetails.length; i++) {
-            uint256 total = lockedRewardDetails[i].totalAmount;
-            uint256 claimedAmount = lockedRewardDetails[i].claimedAmount;
-
-            if (total == claimedAmount) {
-                continue;
-            }
-
-            uint256 currentTimestamp = block.timestamp;
-            if (currentTimestamp >= lockedRewardDetails[i].unlockTime) {
-                releaseAmount += total - claimedAmount;
-                if (!onlyRead) {
-                    lockedRewardDetails[i].claimedAmount = lockedRewardDetails[i].totalAmount;
-                }
-            } else {
-                uint256 totalUnlocked = (currentTimestamp - lockedRewardDetails[i].lockTime) * total / LOCK_PERIOD;
-                uint256 newUnlocked = totalUnlocked - claimedAmount;
-                releaseAmount += newUnlocked;
-                if (!onlyRead) {
-                    lockedRewardDetails[i].claimedAmount += newUnlocked;
-                }
-            }
-            totalLockedAmount += total;
+        LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
+        if (lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
+            return (0, 0);
         }
-        return (releaseAmount, totalLockedAmount - releaseAmount);
+
+        if (block.timestamp > lockedRewardDetail.unlockTime) {
+            releaseAmount = lockedRewardDetail.totalAmount - lockedRewardDetail.claimedAmount;
+            return (releaseAmount, 0);
+        }
+
+        uint256 totalUnlocked =
+            (block.timestamp - lockedRewardDetail.lockTime) * lockedRewardDetail.totalAmount / LOCK_PERIOD;
+        releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
+        return (releaseAmount, lockedRewardDetail.totalAmount - releaseAmount);
+    }
+
+    function calculateReleaseRewardAndUpdate(string memory machineId)
+        internal
+        returns (uint256 releaseAmount, uint256 lockedAmount)
+    {
+        LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
+        if (lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
+            return (0, 0);
+        }
+
+        if (block.timestamp > lockedRewardDetail.unlockTime) {
+            releaseAmount = lockedRewardDetail.totalAmount - lockedRewardDetail.claimedAmount;
+            lockedRewardDetail.claimedAmount = lockedRewardDetail.totalAmount;
+            return (releaseAmount, 0);
+        }
+
+        uint256 totalUnlocked =
+            (block.timestamp - lockedRewardDetail.lockTime) * lockedRewardDetail.totalAmount / LOCK_PERIOD;
+        releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
+        lockedRewardDetail.claimedAmount += releaseAmount;
+        return (releaseAmount, lockedRewardDetail.totalAmount - releaseAmount);
     }
 
     //    function unStakeAndClaim(string calldata machineId) public nonReentrant {
@@ -566,8 +590,8 @@ contract OldNFTStaking is
         require(dlcClientWalletAddress[msg.sender] || msg.sender == stakeInfo.holder, "not dlc client wallet or owner");
         require(stakeInfo.startAtTimestamp > 0, "staking not found");
         require(block.timestamp >= stakeInfo.endAtTimestamp, "staking not ended");
+        _claim(machineId);
         _unStake(machineId, stakeInfo.holder);
-        stateContract.removeMachine(stakeInfo.holder, machineId);
     }
 
     function _unStake(string calldata machineId, address stakeholder) internal {
@@ -588,7 +612,9 @@ contract OldNFTStaking is
         stakeInfo.tokenIdBalances = new uint256[](0);
         stakeInfo.nftCount = 0;
         _joinStaking(machineId, 0, 0);
+        totalStakedGpuCount -= Math.min(stakeInfo.gpuCount, 0);
         removeStakingMachineFromHolder(stakeholder, machineId);
+        stateContract.removeMachine(stakeInfo.holder, machineId);
         emit unStaked(stakeholder, machineId);
     }
 
@@ -636,11 +662,11 @@ contract OldNFTStaking is
     //    }
 
     function getTotalGPUCountInStaking() public view returns (uint256) {
-        return totalGpuCount;
+        return totalStakedGpuCount;
     }
 
     function getLeftGPUCountToStartReward() public view returns (uint256) {
-        return rewardStartGPUThreshold > totalGpuCount ? rewardStartGPUThreshold - totalGpuCount : 0;
+        return rewardStartGPUThreshold > totalStakedGpuCount ? rewardStartGPUThreshold - totalStakedGpuCount : 0;
     }
 
     function rentMachine(string calldata machineId) external onlyRentContract {
@@ -686,8 +712,6 @@ contract OldNFTStaking is
         _claim(machineId);
 
         _unStake(machineId, stakeInfo.holder);
-
-        stateContract.removeMachine(stakeInfo.holder, machineId);
     }
 
     function tryPaySlashOnReport(StakeInfo storage stakeInfo, string memory machineId, address renter) internal {
@@ -696,6 +720,24 @@ contract OldNFTStaking is
         } else {
             pendingSlashedMachineId2Renter[machineId].push(ApprovedReportInfo({renter: renter}));
         }
+    }
+
+    function getMachineInfoForDBCScan(string memory machineId) external view returns (MachineInfoForDBCScan memory) {
+        (, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount) = getRewardInfo(machineId);
+        uint256 totalRewardAmount = canClaimAmount + lockedAmount + claimedAmount;
+        bool _isStaking = isStaking(machineId);
+        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
+        MachineInfoForDBCScan memory machineInfo = MachineInfoForDBCScan({
+            isStaking: _isStaking,
+            gpuType: gpuType,
+            gpuCount: _isStaking ? 1 : 0,
+            mem: mem,
+            projectName: PROJECT_NAME,
+            totalRewardAmount: totalRewardAmount,
+            lockedRewardAmount: lockedAmount,
+            claimedRewardAmount: claimedAmount
+        });
+        return machineInfo;
     }
 
     function getMachineInfo(string memory machineId)
@@ -745,32 +787,32 @@ contract OldNFTStaking is
         return (totalCalcPoint, totalReservedAmount, rewardStartAtTimestamp + REWARD_DURATION);
     }
 
-    //    function notify(NotifyType tp, string calldata machineId) external returns (bool) {
-    //        if (tp == NotifyType.ContractRegister) {
-    //            registered = true;
-    //        } else if (tp == NotifyType.MachineRegister) {
-    //            StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-    //            if (stakeInfo.calcPoint == 0 && stakeInfo.startAtTimestamp > 0) {
-    //                (, uint256 calcPoint,,,,,,) = dbcAIContract.getMachineInfo(machineId,true);
-    //                _joinStaking(machineId, calcPoint, stakeInfo.reservedAmount);
-    //            }
-    //            emit MachineRegister(machineId, stakeInfo.calcPoint);
-    //        } else if (tp == NotifyType.MachineUnregister) {
-    //            StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-    //            if (stakeInfo.startAtTimestamp > 0) {
-    //                _joinStaking(machineId, 0, stakeInfo.reservedAmount);
-    //            }
-    //            emit MachineUnregister(machineId, stakeInfo.calcPoint);
-    //        } else if (tp == NotifyType.MachineOffline) {
-    //            (, bool isRegistered) = dbcAIContract.getMachineState(machineId, projectName, stakingType);
-    //            if (isRegistered) {
-    //                address renter = rentContract.getRenter(machineId);
-    //                reportMachineFault(machineId, renter);
-    //            }
-    //        }
-    //
-    //        return true;
-    //    }
+    function _updateRewardPerCalcPoint() internal {
+        rewardsPerCalcPoint = _getUpdatedRewardPerCalcPoint();
+    }
+
+    function _getUpdatedRewardPerCalcPoint() internal view returns (RewardCalculatorLib.RewardsPerShare memory) {
+        uint256 rewardsPerSeconds = (getDailyRewardAmount()) / 1 days;
+        uint256 rewardEndAt = rewardStartAtTimestamp + REWARD_DURATION;
+        RewardCalculatorLib.RewardsPerShare memory rewardsPerTokenUpdated = RewardCalculatorLib.getUpdateRewardsPerShare(
+            rewardsPerCalcPoint, totalAdjustUnit, rewardsPerSeconds, rewardStartAtTimestamp, rewardEndAt
+        );
+        return rewardsPerTokenUpdated;
+    }
+
+    function _updateMachineRewards(string memory machineId, uint256 machineShares) internal {
+        _updateRewardPerCalcPoint();
+
+        RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
+        RewardCalculatorLib.UserRewards memory machineRewardsUpdated =
+            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
+        machineId2StakeUnitRewards[machineId] = machineRewardsUpdated;
+    }
+
+    function _getMachineShares(uint256 calcPoint, uint256 reservedAmount) internal view returns (uint256) {
+        return calcPoint
+            * toolContract.LnUint256(reservedAmount > BASE_RESERVE_AMOUNT ? reservedAmount : BASE_RESERVE_AMOUNT);
+    }
 
     function _getRewardDetail(uint256 totalRewardAmount)
         internal
@@ -783,13 +825,14 @@ contract OldNFTStaking is
     }
 
     function getReward(string memory machineId) external view returns (uint256) {
-        StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
-        uint256 endAtTimestamp = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
-        uint256 currentRewardPerUnit = getCurrentRewardRate(getRewardEndAtTimestamp(endAtTimestamp));
-        return calculateRewards(machineId, currentRewardPerUnit);
+        return calculateRewards(machineId);
     }
 
     function getDailyRewardAmount() public view returns (uint256) {
+        uint256 remainingSupply = initRewardAmount - totalDistributedRewardAmount;
+        if (dailyRewardAmount > remainingSupply) {
+            return remainingSupply;
+        }
         return dailyRewardAmount;
     }
 
@@ -797,40 +840,32 @@ contract OldNFTStaking is
         return rewardStartAtTimestamp > 0 && block.timestamp >= rewardStartAtTimestamp;
     }
 
-    function updateRewardPerCalcPoint() internal {
-        if (totalAdjustUnit > 0) {
-            uint256 timeDelta = rewardStart() ? block.timestamp - lastUpdateTime : 0;
-            uint256 periodReward = (dailyRewardAmount * timeDelta) / 1 days;
-            rewardPerUnit += toolContract.safeDiv(periodReward, totalAdjustUnit);
-        }
-        lastUpdateTime = block.timestamp;
-    }
+    //    function updateRewardPerCalcPoint() internal {
+    //        if (totalAdjustUnit > 0) {
+    //            uint256 timeDelta = rewardStart() ? block.timestamp - lastUpdateTime : 0;
+    //            uint256 periodReward = (dailyRewardAmount * timeDelta) / 1 days;
+    //            rewardPerUnit += toolContract.safeDiv(periodReward, totalAdjustUnit);
+    //        }
+    //        lastUpdateTime = block.timestamp;
+    //    }
 
     function _joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) internal {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
-        // update global reward rate
-        updateRewardPerCalcPoint();
-
-        uint256 lnReserveAmount = toolContract.LnUint256(
-            stakeInfo.reservedAmount > BASE_RESERVE_AMOUNT ? stakeInfo.reservedAmount : BASE_RESERVE_AMOUNT
-        );
-
-        // update pending rewards of the machine
-        stakeInfo.pendingRewards += ((rewardPerUnit - stakeInfo.userRewardDebt) * stakeInfo.calcPoint * lnReserveAmount)
-            / toolContract.getDecimals();
-
-        stakeInfo.userRewardDebt = rewardPerUnit;
-
         uint256 oldLnReserved = toolContract.LnUint256(
             stakeInfo.reservedAmount > BASE_RESERVE_AMOUNT ? stakeInfo.reservedAmount : BASE_RESERVE_AMOUNT
         );
+
+        uint256 machineShares = stakeInfo.calcPoint * oldLnReserved;
 
         uint256 newLnReserved =
             toolContract.LnUint256(reserveAmount > BASE_RESERVE_AMOUNT ? reserveAmount : BASE_RESERVE_AMOUNT);
 
         totalAdjustUnit -= stakeInfo.calcPoint * oldLnReserved;
         totalAdjustUnit += calcPoint * newLnReserved;
+
+        // update machine rewards
+        _updateMachineRewards(machineId, machineShares);
 
         totalCalcPoint = totalCalcPoint - stakeInfo.calcPoint + calcPoint;
 
@@ -844,42 +879,36 @@ contract OldNFTStaking is
         }
     }
 
-    function getCurrentRewardRate(uint256 endAtTimestamp) internal view returns (uint256) {
-        uint256 tempRewardPerUnit = rewardPerUnit;
+    //    function getCurrentRewardRate(uint256 endAtTimestamp) internal view returns (uint256) {
+    //        uint256 tempRewardPerUnit = rewardPerUnit;
+    //
+    //        uint256 rewardStartTime = getRewardStartTime(rewardStartAtTimestamp);
+    //
+    //        uint256 _lastUpdateTime = rewardStartTime < lastUpdateTime ? lastUpdateTime : rewardStartTime;
+    //
+    //        uint256 timeDelta = endAtTimestamp - _lastUpdateTime;
+    //
+    //        if (totalAdjustUnit > 0) {
+    //            uint256 periodReward = (dailyRewardAmount * timeDelta) / 1 days;
+    //            tempRewardPerUnit += toolContract.safeDiv(periodReward, totalAdjustUnit);
+    //        }
+    //
+    //        return tempRewardPerUnit;
+    //    }
 
-        uint256 rewardStartTime = getRewardStartTime(rewardStartAtTimestamp);
-
-        uint256 _lastUpdateTime = rewardStartTime < lastUpdateTime ? lastUpdateTime : rewardStartTime;
-
-        uint256 timeDelta = endAtTimestamp - _lastUpdateTime;
-
-        if (totalAdjustUnit > 0) {
-            uint256 periodReward = (dailyRewardAmount * timeDelta) / 1 days;
-            tempRewardPerUnit += toolContract.safeDiv(periodReward, totalAdjustUnit);
-        }
-
-        return tempRewardPerUnit;
-    }
-
-    function calculateRewards(string memory machineId, uint256 currentRewardPerUnit) public view returns (uint256) {
-        if (currentRewardPerUnit == 0) {
-            return 0;
-        }
+    function calculateRewards(string memory machineId) public view returns (uint256) {
         StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
 
-        uint256 lnReserveAmount = toolContract.LnUint256(
-            stakeInfo.reservedAmount > BASE_RESERVE_AMOUNT ? stakeInfo.reservedAmount : BASE_RESERVE_AMOUNT
+        uint256 machineShares = _getMachineShares(stakeInfo.calcPoint, stakeInfo.reservedAmount);
+
+        RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
+
+        RewardCalculatorLib.RewardsPerShare memory currentRewardPerCalcPoint = _getUpdatedRewardPerCalcPoint();
+        uint256 rewardAmount = RewardCalculatorLib.calculatePendingUserRewards(
+            machineShares, rewardsPerCalcPoint.accumulatedPerShare, currentRewardPerCalcPoint.accumulatedPerShare
         );
 
-        uint256 accumulatedReward = (
-            (currentRewardPerUnit - stakeInfo.userRewardDebt) * stakeInfo.calcPoint * lnReserveAmount
-        ) / toolContract.getDecimals();
-        if (rewardEnd()) {
-            accumulatedReward = 0;
-        }
-        uint256 rewardAmount = stakeInfo.pendingRewards + accumulatedReward;
-
-        return rewardAmount;
+        return machineRewards.accumulated + rewardAmount;
     }
 
     function rewardEnd() public view returns (bool) {
@@ -891,29 +920,31 @@ contract OldNFTStaking is
 
     function getRewardEndAtTimestamp(uint256 stakeEndAtTimestamp) internal view returns (uint256) {
         uint256 rewardEndAt = rewardStartAtTimestamp + REWARD_DURATION;
-        uint256 endAt = block.timestamp < rewardEndAt ? block.timestamp : rewardEndAt;
-        if (stakeEndAtTimestamp > endAt) {
-            if (stakeEndAtTimestamp - endAt <= 1 hours) {
-                return stakeEndAtTimestamp - 1 hours;
-            }
-            return endAt;
+        uint256 currentTime = block.timestamp;
+        if (stakeEndAtTimestamp > rewardEndAt) {
+            return rewardEndAt;
+        } else if (stakeEndAtTimestamp > currentTime && stakeEndAtTimestamp - currentTime <= 1 hours) {
+            return stakeEndAtTimestamp - 1 hours;
         }
-        return stakeEndAtTimestamp;
+        if (stakeEndAtTimestamp != 0 && stakeEndAtTimestamp < currentTime) {
+            return stakeEndAtTimestamp;
+        }
+        return currentTime;
     }
 
-    function getRewardsAndUpdateGlobalRewardRate(string memory machineId) public returns (uint256) {
-        StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        uint256 endAtTimestamp = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
-        uint256 currentRewardPerUnit = getCurrentRewardRate(getRewardEndAtTimestamp(endAtTimestamp));
-
-        uint256 rewards = calculateRewards(machineId, currentRewardPerUnit);
-
-        stakeInfo.userRewardDebt = currentRewardPerUnit;
-        stakeInfo.pendingRewards = 0;
-        lastUpdateTime = block.timestamp;
-        rewardPerUnit = currentRewardPerUnit;
-        return rewards;
-    }
+    //    function getRewardsAndUpdateGlobalRewardRate(string memory machineId) public returns (uint256) {
+    //        StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
+    //        uint256 endAtTimestamp = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
+    //        uint256 currentRewardPerUnit = getCurrentRewardRate(getRewardEndAtTimestamp(endAtTimestamp));
+    //
+    //        uint256 rewards = calculateRewards(machineId, currentRewardPerUnit);
+    //
+    //        stakeInfo.userRewardDebt = currentRewardPerUnit;
+    //        stakeInfo.pendingRewards = 0;
+    //        lastUpdateTime = block.timestamp;
+    //        rewardPerUnit = currentRewardPerUnit;
+    //        return rewards;
+    //    }
 
     function getRewardStartTime(uint256 _rewardStartAtTimestamp) public view returns (uint256) {
         if (_rewardStartAtTimestamp == 0) {

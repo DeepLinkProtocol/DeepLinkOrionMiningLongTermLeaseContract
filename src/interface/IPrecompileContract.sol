@@ -23,4 +23,9 @@ interface IPrecompileContract {
         uint256 rentGpuCount,
         uint256 totalGpuCount
     ) external view returns (uint256);
+
+    function getMachineGPUTypeAndMem(string memory machineId)
+        external
+        view
+        returns (string memory gpuType, uint256 mem);
 }

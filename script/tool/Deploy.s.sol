@@ -2,9 +2,10 @@
 pragma solidity ^0.8.20;
 
 import {Script} from "forge-std/Script.sol";
-import {Rent} from "../../src/rent/Rent.sol";
+import {Tool} from "../../src/Tool.sol";
 import {Upgrades} from "openzeppelin-foundry-upgrades/Upgrades.sol";
 import {Options} from "openzeppelin-foundry-upgrades/Options.sol";
+
 import {console} from "forge-std/Test.sol";
 
 contract Deploy is Script {
@@ -32,26 +33,9 @@ contract Deploy is Script {
     function deploy() public returns (address proxy, address logic) {
         Options memory opts;
 
-        logic = Upgrades.deployImplementation("Rent.sol:Rent", opts);
+        logic = Upgrades.deployImplementation("Tool.sol:Tool", opts);
 
-        address stakingProxy = vm.envAddress("STAKING_PROXY");
-        console.log("Staking Proxy Address:", stakingProxy);
-
-        address stateProxy = vm.envAddress("STATE_PROXY");
-        console.log("State Proxy Address:", stateProxy);
-
-        address precompileContract = vm.envAddress("PRECOMPILE_CONTRACT");
-        console.log("precompileContract Address:", precompileContract);
-
-        address rewardTokenContract = vm.envAddress("REWARD_TOKEN_CONTRACT");
-        console.log("rewardTokenContract Address:", rewardTokenContract);
-
-        proxy = Upgrades.deployUUPSProxy(
-            "Rent.sol:Rent",
-            abi.encodeCall(
-                Rent.initialize, (msg.sender, precompileContract, stakingProxy, stateProxy, rewardTokenContract)
-            )
-        );
+        proxy = Upgrades.deployUUPSProxy("Tool.sol:Tool", abi.encodeCall(Tool.initialize, (msg.sender)));
         return (proxy, logic);
     }
 }

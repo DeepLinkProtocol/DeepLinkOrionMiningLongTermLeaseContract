@@ -68,6 +68,7 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 totalClaimedRewardAmount;
         uint256 releasedRewardAmount;
     }
+
     address public canUpgradeAddress;
 
     modifier onlyNftStakingAddress() {
@@ -96,7 +97,13 @@ contract NFTStakingState is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
         require(newImplementation != address(0), "new implementation is the zero address");
-        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+        require(
+            msg.sender == canUpgradeAddress || msg.sender == owner(), "only canUpgradeAddress can authorize upgrade"
+        );
+    }
+
+    function setCanUpgradeAddress(address addr) external onlyOwner {
+        canUpgradeAddress = addr;
     }
 
     function setStakingContract(address caller) external onlyOwner {

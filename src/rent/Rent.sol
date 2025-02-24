@@ -160,9 +160,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
         require(newImplementation != address(0), "new implementation is the zero address");
-        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+        require(
+            msg.sender == canUpgradeAddress || msg.sender == owner(), "only canUpgradeAddress can authorize upgrade"
+        );
     }
-
 
     function setAdminsToApproveMachineFaultReporting(address[] calldata admins) external onlyOwner {
         require(admins.length == 5, "admins length should be 5");
@@ -174,6 +175,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken = IRewardToken(_feeToken);
     }
 
+    function setCanUpgradeAddress(address addr) external onlyOwner {
+        canUpgradeAddress = addr;
+    }
+
     function setStakingContract(address addr) external onlyOwner {
         stakingContract = IStakingContract(addr);
     }
@@ -182,7 +187,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(_precompileContract != address(0x0), "precompile contract address should not be 0x0");
         precompileContract = IPrecompileContract(_precompileContract);
     }
-
 
     function setStateContract(address _rentContract) external onlyOwner {
         stateContract = IStateContract(_rentContract);
@@ -273,6 +277,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(rentSeconds >= 10 minutes, "rent duration should be greater than 10 minutes");
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
+        require(rewardEndAt > 60 days, "reward not start");
         uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt), 60 days);
         require(rentSeconds <= maxRentDuration, "rent duration should be less than max rent duration");
 

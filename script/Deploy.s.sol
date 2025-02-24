@@ -72,6 +72,9 @@ contract Deploy is Script {
                 )
             )
         );
+
+        console.log(" Proxy Address:", proxy);
+
         return (proxy, logic);
     }
 }
