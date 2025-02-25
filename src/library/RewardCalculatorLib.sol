@@ -29,7 +29,7 @@ library RewardCalculatorLib {
         if (block.timestamp < rewardsStart) return rewardsPerTokenOut;
 
         uint256 updateTime = block.timestamp < rewardsEnd ? block.timestamp : rewardsEnd;
-        uint256 elapsed = updateTime - rewardsPerTokenIn.lastUpdated;
+        uint256 elapsed = updateTime > rewardsPerTokenIn.lastUpdated? updateTime - rewardsPerTokenIn.lastUpdated : 0;
 
         if (elapsed == 0) return rewardsPerTokenOut;
         rewardsPerTokenOut.lastUpdated = updateTime;
