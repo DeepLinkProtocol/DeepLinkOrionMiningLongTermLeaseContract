@@ -79,7 +79,8 @@ contract RentTest is Test {
         uint256 totalAdjustUnitBeforeRent = nftStaking.totalAdjustUnit();
 
         uint256 rentSeconds = 1 hours;
-        uint256 rentFee = 1000 * 1e18;
+        uint256 rentFee = rent.getMachinePrice(machineId, rentSeconds);
+
         rentMachine(machineId, address(this), rentSeconds, rentFee);
 
         // Assert
@@ -294,15 +295,9 @@ contract RentTest is Test {
     }
 
     function rentMachine(string memory machineId, address renter, uint256 rentSeconds, uint256 rentFee) public {
-        vm.mockCall(
-            address(precompileContract),
-            abi.encodeWithSelector(precompileContract.getDLCRentFeeByCalcPoint.selector),
-            abi.encode(rentFee)
-        );
-
         vm.startPrank(renter);
         rewardToken.approve(address(rent), rentFee);
-        rent.rentMachine(machineId, rentSeconds, rentFee);
+        rent.rentMachine(machineId, rentSeconds);
         vm.stopPrank();
     }
 
@@ -396,6 +391,12 @@ contract RentTest is Test {
             abi.encode(true)
         );
 
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.getMachineGPUTypeAndMem.selector),
+            abi.encode("NVIDIA GeForce RTX 4060 Ti", 16)
+        );
+
         vm.startPrank(owner);
         dealERC1155(address(nftToken), owner, 1, 1, false);
         assertEq(nftToken.balanceOf(owner, 1), 1, "owner erc1155 failed");
@@ -413,6 +414,55 @@ contract RentTest is Test {
         uint256 totalCalcPointBeforeRent = nftStaking.totalCalcPoint();
 
         assertEq(totalCalcPointBeforeRent, 100);
+    }
+
+    function testGetMachinePrice() public {
+        string memory machineId = "machineId";
+
+        vm.mockCall(
+            address(nftStaking.dbcAIContract()),
+            abi.encodeWithSelector(IDBCAIContract.getMachineInfo.selector),
+            abi.encode(owner, 987600, 3500, "NVIDIA GeForce RTX 4060 Ti", 1, "", 1, machineId, 16)
+        );
+
+        vm.mockCall(
+            address(nftStaking.dbcAIContract()),
+            abi.encodeWithSelector(IDBCAIContract.getMachineState.selector),
+            abi.encode(true, true)
+        );
+
+        vm.startPrank(owner);
+        if (!nftStaking.dlcClientWalletAddress(owner)) {
+            address[] memory addrs = new address[](1);
+            addrs[0] = owner;
+            nftStaking.setDLCClientWallets(addrs);
+        }
+
+        dealERC1155(address(nftToken), owner, 1, 1, false);
+        assertEq(nftToken.balanceOf(owner, 1), 1, "owner erc1155 failed");
+        nftToken.setApprovalForAll(address(nftStaking), true);
+
+        uint256[] memory nftTokens = new uint256[](1);
+        uint256[] memory nftTokensBalance = new uint256[](1);
+        nftTokens[0] = 1;
+        nftTokensBalance[0] = 1;
+        nftStaking.stake(owner, machineId, nftTokens, nftTokensBalance, 2);
+
+        uint256 fee = rent.getMachinePrice(machineId, 3600);
+        console.log("fee: {}", fee);
+        assertGt(fee, 13 * 1e18);
+        assertLt(fee, 14 * 1e18);
+    }
+
+    function testTool() public view {
+        string memory gpuType1 = "NVIDIA GeForce RTX 4060 Ti";
+        assertEq(tool.checkString(gpuType1), true, "checkString failed1");
+
+        string memory gpuType2 = "Gen Intel(R) Core(TM) i7-13790F";
+        assertEq(tool.checkString(gpuType2), false, "checkString failed2");
+
+        string memory gpuType3 = "NVIDIA GeForce RTX 20 Ti";
+        assertEq(tool.checkString(gpuType3), true, "checkString failed3");
     }
 
     function claimAfter(string memory machineId, address _owner, uint256 hour, bool shouldGetMore) internal {

@@ -110,6 +110,12 @@ contract StakingTest is Test {
             abi.encode(true)
         );
 
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.getMachineGPUTypeAndMem.selector),
+            abi.encode("NVIDIA GeForce RTX 4060 Ti", 16)
+        );
+
         vm.startPrank(_owner);
         dealERC1155(address(nftToken), _owner, 1, 1, false);
         assertEq(nftToken.balanceOf(_owner, 1), 1, "owner erc1155 failed");

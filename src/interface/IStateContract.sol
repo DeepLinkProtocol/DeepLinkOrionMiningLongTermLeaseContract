@@ -16,7 +16,6 @@ interface IStateContract {
     function setBurnedRentFee(address _holder, string memory _machineId, uint256 fee) external;
     function addRentedGPUCount(address _holder, string memory _machineId) external;
     function subRentedGPUCount(address _holder, string memory _machineId) external;
-    function addReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount) external;
     function subReserveAmount(address _holder, string memory _machineId, uint256 _reserveAmount) external;
 
     function addClaimedRewardAmount(
