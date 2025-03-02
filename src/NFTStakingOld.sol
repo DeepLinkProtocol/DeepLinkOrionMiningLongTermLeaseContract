@@ -791,7 +791,7 @@ contract OldNFTStaking is
             _joinStaking(machineId, stakeInfo.calcPoint, stakeInfo.reservedAmount - BASE_RESERVE_AMOUNT);
         }
 
-        rentContract.paidSlash(stakeInfo.holder, machineId);
+        rentContract.paidSlash(machineId);
         emit PaySlash(machineId, renter, BASE_RESERVE_AMOUNT);
     }
 

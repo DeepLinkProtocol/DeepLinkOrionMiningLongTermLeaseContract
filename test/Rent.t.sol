@@ -420,15 +420,15 @@ contract RentTest is Test {
         string memory machineId = "machineId";
 
         vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(IDBCAIContract.getMachineInfo.selector),
-            abi.encode(owner, 987600, 3500, "NVIDIA GeForce RTX 4060 Ti", 1, "", 1, machineId, 16)
+            address(nftStaking.precompileContract()),
+            abi.encodeWithSelector(precompileContract.getMachineCalcPoint.selector),
+            abi.encode(987600)
         );
 
         vm.mockCall(
-            address(nftStaking.dbcAIContract()),
-            abi.encodeWithSelector(IDBCAIContract.getMachineState.selector),
-            abi.encode(true, true)
+            address(nftStaking.precompileContract()),
+            abi.encodeWithSelector(precompileContract.getMachineGPUTypeAndMem.selector),
+            abi.encode("NVIDIA GeForce RTX 4060 Ti", 16)
         );
 
         vm.startPrank(owner);
@@ -446,7 +446,7 @@ contract RentTest is Test {
         uint256[] memory nftTokensBalance = new uint256[](1);
         nftTokens[0] = 1;
         nftTokensBalance[0] = 1;
-        nftStaking.stake(owner, machineId, nftTokens, nftTokensBalance, 2);
+        nftStaking.stake(machineId, nftTokens, nftTokensBalance, 2);
 
         uint256 fee = rent.getMachinePrice(machineId, 3600);
         console.log("fee: {}", fee);

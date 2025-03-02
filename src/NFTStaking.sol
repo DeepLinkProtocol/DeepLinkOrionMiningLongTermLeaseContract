@@ -318,8 +318,8 @@ contract NFTStaking is
         address stakeholder = msg.sender;
         require(!isStaking(machineId), "machine already staked");
 
-        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
-        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
+//        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
+//        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
 
         require(nftTokenIds.length > 0, "nft token ids is empty");
         uint256 nftCount = getNFTCount(nftTokenIdBalances);
@@ -328,12 +328,12 @@ contract NFTStaking is
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
         //        if (rewardStartAtTimestamp > 0) {
         //            require(
-        //                (rentEndAt - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK >= REWARD_DURATION,
-        //                "rent time must be greater than 60 days since reward start"
+        //                (rentEndAt - rewardStartAtBlockNumber) * SECONDS_PER_BLOCK >= 50 days,
+        //                "rent time must be greater than 50 days since reward start"
         //            );
         //        } else {
         //            require(
-        //                (rentEndAt - block.timestamp) >= REWARD_DURATION,
+        //                (rentEndAt - block.timestamp) >= 50 days,
         //                "rent time must be greater than 60 days since reward start"
         //            );
         //        }
@@ -800,7 +800,7 @@ contract NFTStaking is
             _joinStaking(machineId, stakeInfo.calcPoint, stakeInfo.reservedAmount - BASE_RESERVE_AMOUNT);
         }
 
-        rentContract.paidSlash(stakeInfo.holder, machineId);
+        rentContract.paidSlash(machineId);
         emit PaySlash(machineId, renter, BASE_RESERVE_AMOUNT);
     }
 

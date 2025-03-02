@@ -95,7 +95,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     mapping(address => uint256[]) public renter2RentIds;
     mapping(string => BurnedInfo) public machineId2BurnedInfo;
     mapping(string => SlashInfo) public machineId2SlashInfo;
-    mapping(address => SlashInfo[]) public stakeHolder2SlashInfos;
+    mapping(string => SlashInfo[]) public machineId2SlashInfos;
     mapping(string => mapping(address => Vote)) public pendingSlashMachineId2ApprovedAdmins;
     mapping(string => uint8) public pendingSlashMachineId2ApprovedCount;
     mapping(string => uint8) public pendingSlashMachineId2RefuseCount;
@@ -120,7 +120,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event ExecuteReport(string machineId, Vote vote);
     event MachineRegister(string machineId, uint256 calcPoint);
     event MachineUnregister(string machineId, uint256 calcPoint);
-    event PaidSlash(address indexed stakeHolder, string machineId);
+    event PaidSlash(string machineId);
 
     modifier onlyApproveAdmins() {
         bool found = false;
@@ -450,7 +450,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function addSlashInfoAndReport(SlashInfo memory slashInfo) internal {
-        stakeHolder2SlashInfos[slashInfo.stakeHolder].push(slashInfo);
+        machineId2SlashInfos[slashInfo.machineId].push(slashInfo);
         stakingContract.reportMachineFault(slashInfo.machineId, slashInfo.renter);
     }
 
@@ -548,16 +548,16 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         return renter;
     }
 
-    function getSlashInfosByOwner(address stakeHolder, uint256 pageNumber, uint256 pageSize)
-        external
-        view
-        returns (SlashInfo[] memory paginatedSlashInfos, uint256 totalCount)
+    function getSlashInfosByMachineId(string memory machineId, uint256 pageNumber, uint256 pageSize)
+    external
+    view
+    returns (SlashInfo[] memory paginatedSlashInfos, uint256 totalCount)
     {
         require(pageNumber > 0, "Page number must be greater than zero");
         require(pageSize > 0, "Page size must be greater than zero");
 
         // Get the total number of SlashInfo for the given machineOwner
-        totalCount = stakeHolder2SlashInfos[stakeHolder].length;
+        totalCount = machineId2SlashInfos[machineId].length;
         require(totalCount > 0, "No data available");
 
         // Calculate the start index for the requested page
@@ -577,19 +577,20 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         // Populate the paginated array
         for (uint256 i = 0; i < resultSize; i++) {
-            paginatedSlashInfos[i] = stakeHolder2SlashInfos[stakeHolder][startIndex + i];
+            paginatedSlashInfos[i] = machineId2SlashInfos[machineId][startIndex + i];
         }
     }
 
-    function paidSlash(address holder, string memory machineId) external onlyStakingContract {
-        SlashInfo[] memory slashInfos = stakeHolder2SlashInfos[holder];
+    function paidSlash(string memory machineId) external onlyStakingContract {
+        console.log("paidSlash machineId: ", machineId);
+        SlashInfo[] storage slashInfos = machineId2SlashInfos[machineId];
         for (uint256 i = 0; i < slashInfos.length; i++) {
+            if (slashInfos[i].paid) {
+                return;
+            }
             if (keccak256(abi.encodePacked(slashInfos[i].machineId)) == keccak256(abi.encodePacked(machineId))) {
-                if (slashInfos[i].paid) {
-                    return;
-                }
                 slashInfos[i].paid = true;
-                emit PaidSlash(holder, machineId);
+                emit PaidSlash(machineId);
             }
         }
     }
