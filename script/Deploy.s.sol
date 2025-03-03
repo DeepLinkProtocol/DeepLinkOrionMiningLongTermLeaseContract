@@ -47,9 +47,6 @@ contract Deploy is Script {
         uint8 phaseLevel = uint8(vm.envUint("PHASE_LEVEL"));
         console.log("phaseLevel:", phaseLevel);
 
-        address stateProxy = vm.envAddress("STATE_PROXY");
-        console.log("State Proxy Address:", stateProxy);
-
         address rentProxy = vm.envAddress("RENT_PROXY");
         console.log("Rent Proxy Address:", rentProxy);
 
@@ -64,7 +61,6 @@ contract Deploy is Script {
                     msg.sender,
                     nftContract,
                     rewardTokenContract,
-                    stateProxy,
                     rentProxy,
                     toolContractProxy,
                     precompileContract,

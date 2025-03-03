@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import {Test, console} from "forge-std/Test.sol";
 import {Rent} from "../src/rent/Rent.sol";
 import {NFTStaking} from "../src/NFTStaking.sol";
-import {NFTStakingState} from "../src/state/NFTStakingState.sol";
 import {IPrecompileContract} from "../src/interface/IPrecompileContract.sol";
 
 import {IRewardToken} from "../src/interface/IRewardToken.sol";
@@ -17,7 +16,6 @@ import "./MockERC1155.t.sol";
 contract StakingTest is Test {
     Rent public rent;
     NFTStaking public nftStaking;
-    NFTStakingState public nftStakingState;
     IPrecompileContract public precompileContract;
     Token public rewardToken;
     DLCNode public nftToken;
@@ -44,9 +42,6 @@ contract StakingTest is Test {
         ERC1967Proxy proxy1 = new ERC1967Proxy(address(new NFTStaking()), "");
         nftStaking = NFTStaking(address(proxy1));
 
-        ERC1967Proxy proxy2 = new ERC1967Proxy(address(new NFTStakingState()), "");
-        nftStakingState = NFTStakingState(address(proxy2));
-
         ERC1967Proxy proxy = new ERC1967Proxy(address(new Rent()), "");
         rent = Rent(address(proxy));
 
@@ -54,15 +49,13 @@ contract StakingTest is Test {
             owner,
             address(nftToken),
             address(rewardToken),
-            address(nftStakingState),
             address(rent),
             address(tool),
             address(precompileContract),
             1
         );
-        NFTStakingState(address(proxy2)).initialize(owner, address(rent), address(nftStaking));
         Rent(address(proxy)).initialize(
-            owner, address(precompileContract), address(nftStaking), address(nftStakingState), address(rewardToken)
+            owner, address(precompileContract), address(nftStaking),  address(rewardToken)
         );
         deal(address(rewardToken), address(this), 10000000 * 1e18);
         deal(address(rewardToken), owner, 360000000 * 1e18);
@@ -157,7 +150,7 @@ contract StakingTest is Test {
         //        assertEq(topHolders[0], stakeHolder);
         //        assertEq(topCalcPoints[0], 100);
 
-        (NFTStakingState.StakeHolder[] memory topHolders,) = nftStakingState.getTopStakeHolders(0, 10);
+        (NFTStaking.StakeHolder[] memory topHolders,) = nftStaking.getTopStakeHolders(0, 10);
         assertEq(topHolders[0].holder, stakeHolder, "topHolders[0].holder, stakeHolder");
         assertEq(topHolders[0].totalCalcPoint, 100, "top1 holder calc point 100 failed");
         assertTrue(nftStaking.isStaking(machineId));
@@ -222,14 +215,14 @@ contract StakingTest is Test {
         tokenIds3[0] = 10;
         // staking.stake(machineId3, 10 * 1e18, tokenIds2, 3);
         stakeByOwner(machineId3, 10 * 1e18, 2, stakeHolder);
-        (NFTStakingState.StakeHolder[] memory topHolders1, uint256 total) = nftStakingState.getTopStakeHolders(0, 10);
+        (NFTStaking.StakeHolder[] memory topHolders1, uint256 total) = nftStaking.getTopStakeHolders(0, 10);
         assertEq(topHolders1.length, 2, "topHolders1.length");
         assertEq(total, 2, "total");
         assertEq(topHolders1[0].totalCalcPoint, 200, "top 1 holder calc point 300 failed");
         assertEq(topHolders1[1].totalCalcPoint, 100, "top 2 holder calc point 200 failed");
 
         (address holder, uint256 calcPoint, uint256 gpuCount,, uint256 totalReservedAmount,,,) =
-            nftStakingState.stakeHolders(stakeHolder);
+            nftStaking.stakeHolders(stakeHolder);
 
         assertEq(holder, stakeHolder, "");
         assertEq(calcPoint, 200);

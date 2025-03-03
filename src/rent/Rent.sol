@@ -8,7 +8,6 @@ import "../interface/IStakingContract.sol";
 import "../interface/IRewardToken.sol";
 import "../interface/IRentContract.sol";
 import "../interface/IPrecompileContract.sol";
-import "../interface/IStateContract.sol";
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
@@ -21,7 +20,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     IRewardToken public feeToken;
     IPrecompileContract public precompileContract;
     IStakingContract public stakingContract;
-    IStateContract public stateContract;
 
     uint256 public lastRentId;
     uint256 public totalBurnedAmount;
@@ -148,7 +146,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         address _initialOwner,
         address _precompileContract,
         address _stakingContract,
-        address _stateContract,
         address _feeToken
     ) public initializer {
         __Ownable_init(_initialOwner);
@@ -156,7 +153,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         feeToken = IRewardToken(_feeToken);
         precompileContract = IPrecompileContract(_precompileContract);
         stakingContract = IStakingContract(_stakingContract);
-        stateContract = IStateContract(_stateContract);
         voteThreshold = 3;
         canUpgradeAddress = msg.sender;
     }
@@ -191,9 +187,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         precompileContract = IPrecompileContract(_precompileContract);
     }
 
-    function setStateContract(address _rentContract) external onlyOwner {
-        stateContract = IStateContract(_rentContract);
-    }
 
     function findUintIndex(uint256[] memory arr, uint256 v) internal pure returns (uint256) {
         for (uint256 i = 0; i < arr.length; i++) {
@@ -274,7 +267,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         require(rewardEndAt > 60 days, "reward not start");
-        uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt), 60 days);
+        uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
         require(rentSeconds <= maxRentDuration, "rent duration should be less than max rent duration");
 
         uint256 lastRentEndBlock = machineId2LastRentEndBlock[machineId];
@@ -327,8 +320,8 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // notify staking contract renting machine action happened
         stakingContract.rentMachine(machineId);
 
-        stateContract.setBurnedRentFee(machineHolder, machineId, rentFeeInFact);
-        stateContract.addRentedGPUCount(machineHolder, machineId);
+        stakingContract.setBurnedRentFee(machineHolder, machineId, rentFeeInFact);
+        stakingContract.addRentedGPUCount(machineHolder, machineId);
 
         emit RentMachine(lastRentId, machineId, block.timestamp + rentSeconds, 1, msg.sender, rentFeeInFact);
     }
@@ -372,7 +365,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // update total burned amount
         totalBurnedAmount += additionalRentFeeInFact;
 
-        stateContract.setBurnedRentFee(machineHolder, machineId, additionalRentFeeInFact);
+        stakingContract.setBurnedRentFee(machineHolder, machineId, additionalRentFeeInFact);
         emit RenewRent(rentId, additionalRentSeconds, additionalRentFeeInFact, msg.sender);
     }
 
@@ -558,7 +551,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         // Get the total number of SlashInfo for the given machineOwner
         totalCount = machineId2SlashInfos[machineId].length;
-        require(totalCount > 0, "No data available");
+        if (totalCount == 0){
+            return (new SlashInfo[](0), totalCount);
+        }
 
         // Calculate the start index for the requested page
         uint256 startIndex = (pageNumber - 1) * pageSize;

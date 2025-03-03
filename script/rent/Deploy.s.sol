@@ -37,9 +37,6 @@ contract Deploy is Script {
         address stakingProxy = vm.envAddress("STAKING_PROXY");
         console.log("Staking Proxy Address:", stakingProxy);
 
-        address stateProxy = vm.envAddress("STATE_PROXY");
-        console.log("State Proxy Address:", stateProxy);
-
         address precompileContract = vm.envAddress("PRECOMPILE_CONTRACT");
         console.log("precompileContract Address:", precompileContract);
 
@@ -49,7 +46,7 @@ contract Deploy is Script {
         proxy = Upgrades.deployUUPSProxy(
             "Rent.sol:Rent",
             abi.encodeCall(
-                Rent.initialize, (msg.sender, precompileContract, stakingProxy, stateProxy, rewardTokenContract)
+                Rent.initialize, (msg.sender, precompileContract, stakingProxy, rewardTokenContract)
             )
         );
         return (proxy, logic);
