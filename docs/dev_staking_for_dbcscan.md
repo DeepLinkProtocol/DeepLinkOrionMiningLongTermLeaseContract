@@ -52,6 +52,12 @@ deeplink长租竞赛质押合约是用于管理 NFT 质押的智能合约。它�
   - `machineId`: 机器 ID
 - 返回值：`MachineInfoForDBCScan`
 
+### `getStakeEndTimestamp(string calldata machineId) public view returns(uint256)`
+- 描述：获取质押结束时间
+- 参数：
+  - `machineId`: 机器 ID
+- 返回值：uint256 质押结束时间戳(seconds)
+
 ```solidity
  struct MachineInfoForDBCScan {
         bool isStaking;  // 是否在质押
@@ -71,5 +77,3 @@ deeplink长租竞赛质押合约是用于管理 NFT 质押的智能合约。它�
 - 'dailyRewardAmount' uint256: 每日总的奖励数量
 
 - 'totalStakingGpuCount' uint256 : 当前处于质押状态GPU的总数量
-
-- 'holder2MachineIds' mapping(address => string[]): 质押人地址到机器ID的映射

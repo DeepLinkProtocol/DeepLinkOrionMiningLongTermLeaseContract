@@ -839,17 +839,23 @@ contract NFTStaking is
     }
 
     function getRewardEndAtTimestamp(uint256 stakeEndAtTimestamp) internal view returns (uint256) {
+        if (rewardStartAtTimestamp == 0){
+            return stakeEndAtTimestamp;
+        }
         uint256 rewardEndAt = rewardStartAtTimestamp + REWARD_DURATION;
         uint256 currentTime = block.timestamp;
         if (stakeEndAtTimestamp > rewardEndAt) {
             return rewardEndAt;
-        } else if (stakeEndAtTimestamp > currentTime && stakeEndAtTimestamp - currentTime <= 1 hours) {
-            return stakeEndAtTimestamp - 1 hours;
         }
-        if (stakeEndAtTimestamp != 0 && stakeEndAtTimestamp < currentTime) {
-            return stakeEndAtTimestamp;
-        }
-        return currentTime;
+        return stakeEndAtTimestamp;
+    }
+
+
+    function getStakeEndTimestamp(string calldata machineId) public view returns(uint256)  {
+        StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
+        uint256 endEndAtBlockNumber = precompileContract.getOwnerRentEndAt("machineId", stakeInfo.rentId);
+        uint256 endEndAtTimestamp = (endEndAtBlockNumber - block.number) * SECONDS_PER_BLOCK + block.timestamp;
+        return getRewardEndAtTimestamp(endEndAtTimestamp);
     }
 
     function version() external pure returns (uint256) {
