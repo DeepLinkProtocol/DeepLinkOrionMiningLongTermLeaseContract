@@ -71,3 +71,5 @@ deeplink长租竞赛质押合约是用于管理 NFT 质押的智能合约。它�
 - 'dailyRewardAmount' uint256: 每日总的奖励数量
 
 - 'totalStakingGpuCount' uint256 : 当前处于质押状态GPU的总数量
+
+- 'holder2MachineIds' mapping(address => string[]): 质押人地址到机器ID的映射
