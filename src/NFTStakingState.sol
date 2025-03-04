@@ -7,6 +7,9 @@ import "./interface/IRentContract.sol";
 contract NFTStakingState {
     IRentContract public rentContract;
 
+    uint256 public totalReservedAmount;
+    uint256 public totalGpuCount;
+    uint256 public totalCalcPoint;
     uint256 public addressCountInStaking;
     string[] public machineIds;
     SimpleStakeHolder[] public topStakeHolders;
@@ -21,7 +24,6 @@ contract NFTStakingState {
         uint256 totalRentedGPUCount;
         uint256 totalBurnedRentFee;
         uint256 totalReservedAmount;
-        uint256 leftGPUCountBeforeRewardStart;
     }
 
     struct MachineInfo {
@@ -384,29 +386,17 @@ contract NFTStakingState {
         return rentContract.getTotalBurnedRentFee();
     }
 
-    //    function getTotalGPUCountInStaking() public view returns (uint256) {
-    //        return stakingContract.getTotalGPUCountInStaking();
-    //    }
-    //
-    //    function getLeftGPUCountToStartReward() public view returns (uint256) {
-    //        return stakingContract.getLeftGPUCountToStartReward();
-    //    }
+    function getStateSummary() public view returns (StateSummary memory) {
 
-    //    function getStateSummary() public view returns (StateSummary memory) {
-    //        uint256 totalGPUCount = stakingContract.getTotalGPUCountInStaking();
-    //        uint256 _leftGPUCountBeforeRewardStart = stakingContract.getLeftGPUCountToStartReward();
-    //        (uint256 totalCalcPoint, uint256 totalReservedAmount,) = stakingContract.getGlobalState();
-    //
-    //        return StateSummary({
-    //            totalCalcPoint: totalCalcPoint,
-    //            totalGPUCount: totalGPUCount,
-    //            totalCalcPointPoolCount: addressCountInStaking,
-    //            totalRentedGPUCount: rentContract.getTotalRentedGPUCount(),
-    //            totalBurnedRentFee: rentContract.getTotalBurnedRentFee(),
-    //            totalReservedAmount: totalReservedAmount,
-    //            leftGPUCountBeforeRewardStart: _leftGPUCountBeforeRewardStart
-    //        });
-    //    }
+        return StateSummary({
+            totalCalcPoint: totalCalcPoint,
+            totalGPUCount: totalGpuCount,
+            totalCalcPointPoolCount: addressCountInStaking,
+            totalRentedGPUCount: rentContract.getTotalRentedGPUCount(),
+            totalBurnedRentFee: rentContract.getTotalBurnedRentFee(),
+            totalReservedAmount: totalReservedAmount
+        });
+    }
 
     function isRented(string calldata machineId) external view returns (bool) {
         return rentContract.isRented(machineId);

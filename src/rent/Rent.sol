@@ -16,6 +16,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     uint8 public constant SECONDS_PER_BLOCK = 6;
     uint256 public constant REPORT_RESERVE_AMOUNT = 10_000 ether;
     uint256 public constant SLASH_AMOUNT = 10_000 ether;
+    uint256 public constant ONE_CALC_POINT_USD_VALUE_PER_MONTH = 5_080;
+    uint256 public constant FACTOR = 10_000;
+    uint256 public constant USD_DECIMALS = 1_000_000;
 
     IRewardToken public feeToken;
     IPrecompileContract public precompileContract;
@@ -25,6 +28,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     uint256 public totalBurnedAmount;
     uint8 public voteThreshold;
     bool public registered;
+
     RentGPUInfo public rentGPUInfo;
 
     enum SlashType {
@@ -98,13 +102,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     mapping(string => uint8) public pendingSlashMachineId2ApprovedCount;
     mapping(string => uint8) public pendingSlashMachineId2RefuseCount;
     mapping(address => uint256) public stakeHolder2RentFee;
-
     mapping(address => RentGPUInfo) public stakeHolder2RentGPUInfo;
     mapping(string => uint256) public machineId2LastRentEndBlock;
     address public canUpgradeAddress;
-    uint256 public constant ONE_CALC_POINT_USD_VALUE_PER_MONTH = 5_080;
-    uint256 public constant FACTOR = 10_000;
-    uint256 public constant USD_DECIMALS = 1_000_000;
 
     event RentMachine(
         uint256 rentId, string machineId, uint256 rentEndTime, uint8 gpuCount, address renter, uint256 rentFee

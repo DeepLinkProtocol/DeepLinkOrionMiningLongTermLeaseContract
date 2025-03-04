@@ -41,9 +41,6 @@ contract NFTStaking is
     address private canUpgradeAddress;
     uint256 public totalDistributedRewardAmount;
 
-    uint256 public totalReservedAmount;
-    uint256 public totalCalcPoint;
-    uint256 public totalGpuCount;
     uint256 public totalStakingGpuCount;
 
     struct ApprovedReportInfo {
@@ -608,14 +605,6 @@ contract NFTStaking is
     //        stateContract.addOrUpdateStakeHolder(stakeInfo.holder, machineId, stakeInfo.calcPoint, 0, 0, false);
     //        emit AddNFTs(machineId, nftTokenIds);
     //    }
-
-    function getTotalGPUCountInStaking() public view returns (uint256) {
-        return totalGpuCount;
-    }
-
-    function getLeftGPUCountToStartReward() public view returns (uint256) {
-        return rewardStartGPUThreshold > totalGpuCount ? rewardStartGPUThreshold - totalGpuCount : 0;
-    }
 
     function rentMachine(string calldata machineId) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
