@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -19,13 +19,13 @@ import "./NFTStakingState.sol";
 
 /// @custom:oz-upgrades-from OldNFTStaking
 contract OldNFTStaking is
-RewardCalculator,
-NFTStakingState,
-Initializable,
-ReentrancyGuardUpgradeable,
-OwnableUpgradeable,
-UUPSUpgradeable,
-IERC1155Receiver
+    RewardCalculator,
+    NFTStakingState,
+    Initializable,
+    ReentrancyGuardUpgradeable,
+    OwnableUpgradeable,
+    UUPSUpgradeable,
+    IERC1155Receiver
 {
     string public constant PROJECT_NAME = "deeplink";
     uint8 public constant SECONDS_PER_BLOCK = 6;
@@ -45,7 +45,6 @@ IERC1155Receiver
     uint256 public totalCalcPoint;
     uint256 public totalGpuCount;
     uint256 public totalStakingGpuCount;
-
 
     struct ApprovedReportInfo {
         address renter;
@@ -290,8 +289,8 @@ IERC1155Receiver
         address stakeholder = msg.sender;
         require(!isStaking(machineId), "machine already staked");
 
-//        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
-//        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
+        //        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
+        //        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
 
         require(nftTokenIds.length > 0, "nft token ids is empty");
         uint256 nftCount = getNFTCount(nftTokenIdBalances);
@@ -362,9 +361,9 @@ IERC1155Receiver
     }
 
     function getRewardInfo(string memory machineId)
-    public
-    view
-    returns (uint256 newRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
+        public
+        view
+        returns (uint256 newRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
     {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
@@ -416,7 +415,7 @@ IERC1155Receiver
         if (canClaimAmount > 0 && (_isStaking || slashed)) {
             if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT) {
                 (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
-                                tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+                    tryMoveReserve(machineId, canClaimAmount, stakeInfo);
                 canClaimAmount = leftAmountCanClaim;
                 moveToReserveAmount = _moveToReserveAmount;
             }
@@ -433,7 +432,7 @@ IERC1155Receiver
 
         if (stakeInfo.reservedAmount < BASE_RESERVE_AMOUNT && _isStaking) {
             (uint256 _moveToReserveAmount, uint256 leftAmountCanClaim) =
-                            tryMoveReserve(machineId, canClaimAmount, stakeInfo);
+                tryMoveReserve(machineId, canClaimAmount, stakeInfo);
             canClaimAmount = leftAmountCanClaim;
             moveToReserveAmount = _moveToReserveAmount;
         }
@@ -462,14 +461,14 @@ IERC1155Receiver
     }
 
     function getAllRewardInfo(address holder)
-    external
-    view
-    returns (uint256 availableRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
+        external
+        view
+        returns (uint256 availableRewardAmount, uint256 canClaimAmount, uint256 lockedAmount, uint256 claimedAmount)
     {
         string[] memory machineIds = holder2MachineIds[holder];
         for (uint256 i = 0; i < machineIds.length; i++) {
             (uint256 _availableRewardAmount, uint256 _canClaimAmount, uint256 _lockedAmount, uint256 _claimedAmount) =
-                            getRewardInfo(machineIds[i]);
+                getRewardInfo(machineIds[i]);
             availableRewardAmount += _availableRewardAmount;
             canClaimAmount += _canClaimAmount;
             lockedAmount += _lockedAmount;
@@ -478,7 +477,7 @@ IERC1155Receiver
         return (availableRewardAmount, canClaimAmount, lockedAmount, claimedAmount);
     }
 
-    function claimAll() external nonReentrant{
+    function claimAll() external nonReentrant {
         string[] memory machineIds = holder2MachineIds[msg.sender];
         for (uint256 i = 0; i < machineIds.length; i++) {
             claim(machineIds[i]);
@@ -498,8 +497,8 @@ IERC1155Receiver
     }
 
     function tryMoveReserve(string memory machineId, uint256 canClaimAmount, StakeInfo storage stakeInfo)
-    internal
-    returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)
+        internal
+        returns (uint256 moveToReserveAmount, uint256 leftAmountCanClaim)
     {
         uint256 leftAmountShouldReserve = BASE_RESERVE_AMOUNT - stakeInfo.reservedAmount;
         if (canClaimAmount >= leftAmountShouldReserve) {
@@ -516,7 +515,6 @@ IERC1155Receiver
         NFTStakingState.addReserveAmount(machineId, stakeInfo.holder, moveToReserveAmount);
         return (moveToReserveAmount, canClaimAmount);
     }
-
 
     function unStake(string calldata machineId) public nonReentrant {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
@@ -571,7 +569,7 @@ IERC1155Receiver
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         bool _isStaking = stakeInfo.holder != address(0) && stakeInfo.startAtTimestamp > 0
             && (precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId) - rewardStartAtBlockNumber)
-            * SECONDS_PER_BLOCK >= REWARD_DURATION && stakeInfo.endAtTimestamp == 0;
+                * SECONDS_PER_BLOCK >= REWARD_DURATION && stakeInfo.endAtTimestamp == 0;
 
         return _isStaking;
     }
@@ -674,16 +672,16 @@ IERC1155Receiver
     }
 
     function getMachineInfo(string memory machineId)
-    external
-    view
-    returns (
-        address holder,
-        uint256 calcPoint,
-        uint256 startAtTimestamp,
-        uint256 endAtTimestamp,
-        uint256 nextRenterCanRentAt,
-        uint256 reservedAmount
-    )
+        external
+        view
+        returns (
+            address holder,
+            uint256 calcPoint,
+            uint256 startAtTimestamp,
+            uint256 endAtTimestamp,
+            uint256 nextRenterCanRentAt,
+            uint256 reservedAmount
+        )
     {
         StakeInfo memory info = machineId2StakeInfos[machineId];
         uint256 rentEndAtBlock = precompileContract.getOwnerRentEndAt(machineId, info.rentId);
@@ -745,7 +743,7 @@ IERC1155Receiver
 
         RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
         RewardCalculatorLib.UserRewards memory machineRewardsUpdated =
-                            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
+            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
         machineId2StakeUnitRewards[machineId] = machineRewardsUpdated;
     }
 
@@ -777,7 +775,7 @@ IERC1155Receiver
         uint256 machineShares = stakeInfo.calcPoint * oldLnReserved;
 
         uint256 newLnReserved =
-                            toolContract.LnUint256(reserveAmount > BASE_RESERVE_AMOUNT ? reserveAmount : BASE_RESERVE_AMOUNT);
+            toolContract.LnUint256(reserveAmount > BASE_RESERVE_AMOUNT ? reserveAmount : BASE_RESERVE_AMOUNT);
 
         totalAdjustUnit -= stakeInfo.calcPoint * oldLnReserved;
         totalAdjustUnit += calcPoint * newLnReserved;

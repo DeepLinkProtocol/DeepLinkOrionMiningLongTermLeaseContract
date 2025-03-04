@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
@@ -106,7 +106,9 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     uint256 public constant FACTOR = 10_000;
     uint256 public constant USD_DECIMALS = 1_000_000;
 
-    event RentMachine(uint256 rentId, string machineId, uint256 rentEndTime, uint8 gpuCount, address renter,uint256 rentFee);
+    event RentMachine(
+        uint256 rentId, string machineId, uint256 rentEndTime, uint8 gpuCount, address renter, uint256 rentFee
+    );
     event RenewRent(uint256 rentId, uint256 additionalRentSeconds, uint256 additionalRentFee, address renter);
     event EndRentMachine(uint256 rentId, string machineId, uint256 rentEndTime, address renter);
     event ReportMachineFault(uint256 rentId, string machineId, address reporter);
@@ -142,12 +144,10 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(
-        address _initialOwner,
-        address _precompileContract,
-        address _stakingContract,
-        address _feeToken
-    ) public initializer {
+    function initialize(address _initialOwner, address _precompileContract, address _stakingContract, address _feeToken)
+        public
+        initializer
+    {
         __Ownable_init(_initialOwner);
         __UUPSUpgradeable_init();
         feeToken = IRewardToken(_feeToken);
@@ -186,7 +186,6 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(_precompileContract != address(0x0), "precompile contract address should not be 0x0");
         precompileContract = IPrecompileContract(_precompileContract);
     }
-
 
     function findUintIndex(uint256[] memory arr, uint256 v) internal pure returns (uint256) {
         for (uint256 i = 0; i < arr.length; i++) {
@@ -233,7 +232,7 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             return false;
         }
         (, uint256 calcPoint,, uint256 endAtTimestamp, uint256 nextRenterCanRentAt,) =
-                            stakingContract.getMachineInfo(machineId);
+            stakingContract.getMachineInfo(machineId);
         if (isRented(machineId) || calcPoint == 0) {
             return false;
         }
@@ -542,16 +541,16 @@ contract OldRent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getSlashInfosByMachineId(string memory machineId, uint256 pageNumber, uint256 pageSize)
-    external
-    view
-    returns (SlashInfo[] memory paginatedSlashInfos, uint256 totalCount)
+        external
+        view
+        returns (SlashInfo[] memory paginatedSlashInfos, uint256 totalCount)
     {
         require(pageNumber > 0, "Page number must be greater than zero");
         require(pageSize > 0, "Page size must be greater than zero");
 
         // Get the total number of SlashInfo for the given machineOwner
         totalCount = machineId2SlashInfos[machineId].length;
-        if (totalCount == 0){
+        if (totalCount == 0) {
             return (new SlashInfo[](0), totalCount);
         }
 

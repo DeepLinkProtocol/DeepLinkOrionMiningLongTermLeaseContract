@@ -8,6 +8,7 @@ extra_output = ["storageLayout"]
 ffi = true
 viaIR = true
 fs_permissions = [{ access = "read", path = "./broadcast" },{ access = "read", path = "./out" }]
+solc_version = "0.8.26"
 
 
 [etherscan]

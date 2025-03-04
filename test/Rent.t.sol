@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/Test.sol";
 import {Rent} from "../src/rent/Rent.sol";
@@ -44,17 +44,9 @@ contract RentTest is Test {
         rent = Rent(address(proxy));
 
         NFTStaking(address(proxy1)).initialize(
-            owner,
-            address(nftToken),
-            address(rewardToken),
-            address(rent),
-            address(tool),
-            address(precompileContract),
-            1
+            owner, address(nftToken), address(rewardToken), address(rent), address(tool), address(precompileContract), 1
         );
-        Rent(address(proxy)).initialize(
-            owner, address(precompileContract), address(nftStaking),  address(rewardToken)
-        );
+        Rent(address(proxy)).initialize(owner, address(precompileContract), address(nftStaking), address(rewardToken));
         deal(address(rewardToken), address(this), 10000000 * 1e18);
         deal(address(rewardToken), owner, 360000000 * 1e18);
         rewardToken.approve(address(nftStaking), 360000000 * 1e18);
@@ -97,7 +89,7 @@ contract RentTest is Test {
 
         // end machine
         vm.startPrank(admins[0]);
-        vm.expectRevert("rent not end");
+        vm.expectRevert(abi.encodeWithSelector(Rent.RentNotEnd.selector));
         rent.endRentMachine(machineId);
 
         passHours(1);
@@ -110,8 +102,7 @@ contract RentTest is Test {
         assertEq(totalAdjustUnitAfterRent, totalAdjustUnitBeforeRent);
         vm.stopPrank();
 
-        (NFTStaking.StakeHolder[] memory topStakeHolders, uint256 total) =
-            nftStaking.getTopStakeHolders(0, 10);
+        (NFTStaking.StakeHolder[] memory topStakeHolders, uint256 total) = nftStaking.getTopStakeHolders(0, 10);
         assertEq(total, 1);
         assertEq(topStakeHolders.length, 1);
         assertEq(topStakeHolders[0].holder, owner);
@@ -422,6 +413,30 @@ contract RentTest is Test {
             address(nftStaking.precompileContract()),
             abi.encodeWithSelector(precompileContract.getMachineGPUTypeAndMem.selector),
             abi.encode("NVIDIA GeForce RTX 4060 Ti", 16)
+        );
+
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.getMachineCPURate.selector),
+            abi.encode(3500)
+        );
+
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.getMachineGPUCount.selector),
+            abi.encode(1)
+        );
+
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.getOwnerRentEndAt.selector),
+            abi.encode(60 days / 6)
+        );
+
+        vm.mockCall(
+            address(precompileContract),
+            abi.encodeWithSelector(precompileContract.isMachineOwner.selector),
+            abi.encode(true)
         );
 
         vm.startPrank(owner);

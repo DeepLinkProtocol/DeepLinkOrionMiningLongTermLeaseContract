@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {RewardCalculatorLib} from "./library/RewardCalculatorLib.sol";
 
@@ -29,15 +29,12 @@ contract RewardCalculator {
 
     event RewardsPerCalcPointUpdate(uint256 accumulatedPerShareBefore, uint256 accumulatedPerShareAfter);
 
-
-    function __RewardCalculator_init() internal  {
-
-    }
+    function __RewardCalculator_init() internal {}
 
     function _getRewardDetail(uint256 totalRewardAmount)
-    internal
-    pure
-    returns (uint256 canClaimAmount, uint256 lockedAmount)
+        internal
+        pure
+        returns (uint256 canClaimAmount, uint256 lockedAmount)
     {
         uint256 releaseImmediateAmount = totalRewardAmount / 10;
         uint256 releaseLinearLockedAmount = totalRewardAmount - releaseImmediateAmount;
@@ -45,9 +42,9 @@ contract RewardCalculator {
     }
 
     function calculateReleaseReward(string memory machineId)
-    public
-    view
-    returns (uint256 releaseAmount, uint256 lockedAmount)
+        public
+        view
+        returns (uint256 releaseAmount, uint256 lockedAmount)
     {
         LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
         if (lockedRewardDetail.totalAmount > 0 && lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
@@ -65,13 +62,17 @@ contract RewardCalculator {
         return (releaseAmount, lockedRewardDetail.totalAmount - releaseAmount);
     }
 
-    function _updateRewardPerCalcPoint(uint256 rewardDuration,uint256 totalDistributedRewardAmount) internal {
+    function _updateRewardPerCalcPoint(uint256 rewardDuration, uint256 totalDistributedRewardAmount) internal {
         uint256 accumulatedPerShareBefore = rewardsPerCalcPoint.accumulatedPerShare;
-        rewardsPerCalcPoint = _getUpdatedRewardPerCalcPoint(rewardDuration,totalDistributedRewardAmount);
+        rewardsPerCalcPoint = _getUpdatedRewardPerCalcPoint(rewardDuration, totalDistributedRewardAmount);
         emit RewardsPerCalcPointUpdate(accumulatedPerShareBefore, rewardsPerCalcPoint.accumulatedPerShare);
     }
 
-    function _getUpdatedRewardPerCalcPoint(uint256 rewardDuration,uint256 totalDistributedRewardAmount) internal view returns (RewardCalculatorLib.RewardsPerShare memory) {
+    function _getUpdatedRewardPerCalcPoint(uint256 rewardDuration, uint256 totalDistributedRewardAmount)
+        internal
+        view
+        returns (RewardCalculatorLib.RewardsPerShare memory)
+    {
         uint256 rewardsPerSeconds = (_getDailyRewardAmount(totalDistributedRewardAmount)) / 1 days;
         if (rewardStartAtTimestamp == 0) {
             return RewardCalculatorLib.RewardsPerShare(0, 0);
@@ -93,18 +94,23 @@ contract RewardCalculator {
         return dailyRewardAmount;
     }
 
-    function _updateMachineRewards(string memory machineId, uint256 machineShares,uint256 rewardDuration,uint256 totalDistributedRewardAmount) internal {
-        _updateRewardPerCalcPoint(rewardDuration,totalDistributedRewardAmount);
+    function _updateMachineRewards(
+        string memory machineId,
+        uint256 machineShares,
+        uint256 rewardDuration,
+        uint256 totalDistributedRewardAmount
+    ) internal {
+        _updateRewardPerCalcPoint(rewardDuration, totalDistributedRewardAmount);
 
         RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
         RewardCalculatorLib.UserRewards memory machineRewardsUpdated =
-                            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
+            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
         machineId2StakeUnitRewards[machineId] = machineRewardsUpdated;
     }
 
     function calculateReleaseRewardAndUpdate(string memory machineId)
-    internal
-    returns (uint256 releaseAmount, uint256 lockedAmount)
+        internal
+        returns (uint256 releaseAmount, uint256 lockedAmount)
     {
         LockedRewardDetail storage lockedRewardDetail = machineId2LockedRewardDetail[machineId];
         if (lockedRewardDetail.totalAmount > 0 && lockedRewardDetail.totalAmount == lockedRewardDetail.claimedAmount) {
@@ -127,5 +133,4 @@ contract RewardCalculator {
     function rewardStart() internal view returns (bool) {
         return rewardStartAtTimestamp > 0 && block.timestamp >= rewardStartAtTimestamp;
     }
-
 }

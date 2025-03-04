@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
@@ -45,7 +45,6 @@ contract NFTStaking is
     uint256 public totalCalcPoint;
     uint256 public totalGpuCount;
     uint256 public totalStakingGpuCount;
-
 
     struct ApprovedReportInfo {
         address renter;
@@ -102,6 +101,30 @@ contract NFTStaking is
     event ReportMachineFault(string machineId, address renter);
     event DepositReward(uint256 amount);
 
+    // error
+    error CallerNotRentContract();
+    error ZeroAddress();
+    error AddressExists();
+    error CanNotUpgrade(address);
+    error TimestampLessThanCurrent();
+    error MachineNotStaked(string machineId);
+    error MachineIsStaking(string machineId);
+    error StakeAmountLessThanReserve(string machineId, uint256 amount);
+    error MemorySizeLessThan16G(uint256 mem);
+    error GPUTypeNotMatch(string gpuType);
+    error ZeroCalcPoint();
+    error InvalidNFTLength(uint256 tokenIdLength, uint256 balanceLength);
+    error GPUCountNotEqualOne(string machineId);
+    error CPURateLessThan3500(string machineId);
+    error NotMachineOwnerOrAdmin(address);
+    error StakingHasEnded();
+    error ZeroNFTTokenIds();
+    error NFTCountGreaterThan20();
+    error NotPaidSlashBeforeClaim(string machineId, uint256 slashAmount);
+    error NotStakeHolder(string machineId, address currentAddress);
+    error MachineRentedByUser();
+    error MachineNotRented();
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -131,16 +154,8 @@ contract NFTStaking is
         return interfaceId == type(IERC1155Receiver).interfaceId;
     }
 
-    modifier onlyRentContractOrThis() {
-        require(
-            msg.sender == address(rentContract) || msg.sender == address(this),
-            "only rent contract or this can call this function"
-        );
-        _;
-    }
-
     modifier onlyRentContract() {
-        require(msg.sender == address(rentContract), "only rent contract can call this function");
+        require(msg.sender == address(rentContract), CallerNotRentContract());
         _;
     }
 
@@ -197,8 +212,8 @@ contract NFTStaking is
     }
 
     function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
-        require(newImplementation != address(0), "new implementation is the zero address");
-        require(msg.sender == canUpgradeAddress, "only canUpgradeAddress can authorize upgrade");
+        require(newImplementation != address(0), ZeroAddress());
+        require(msg.sender == canUpgradeAddress, CanNotUpgrade(msg.sender));
     }
 
     function getUpgradeAddress() external view onlyOwner returns (address) {
@@ -207,11 +222,6 @@ contract NFTStaking is
 
     function setUpgradeAddress(address addr) external onlyOwner {
         canUpgradeAddress = addr;
-    }
-
-    function requestUpgradeAddress(address addr) external pure returns (bytes memory) {
-        bytes memory data = abi.encodeWithSignature("setUpgradeAddress(address)", addr);
-        return data;
     }
 
     function setRewardToken(address token) external onlyOwner {
@@ -227,20 +237,20 @@ contract NFTStaking is
     }
 
     function setRewardStartAt(uint256 timestamp) external onlyOwner {
-        require(timestamp >= block.timestamp, "time must be greater than current block number");
+        require(timestamp >= block.timestamp, TimestampLessThanCurrent());
         rewardStartAtTimestamp = timestamp;
     }
 
     function setDLCClientWallets(address[] calldata addrs) external onlyOwner {
         for (uint256 i = 0; i < addrs.length; i++) {
-            require(addrs[i] != address(0), "address is zero");
-            require(dlcClientWalletAddress[addrs[i]] == false, "address already added");
+            require(addrs[i] != address(0), ZeroAddress());
+            require(dlcClientWalletAddress[addrs[i]] == false, AddressExists());
             dlcClientWalletAddress[addrs[i]] = true;
         }
     }
 
     function addDLCToStake(string memory machineId, uint256 amount) external nonReentrant {
-        require(isStaking(machineId), "machine not staked");
+        require(isStaking(machineId), MachineNotStaked(machineId));
         if (amount == 0) {
             return;
         }
@@ -249,7 +259,8 @@ contract NFTStaking is
         ApprovedReportInfo[] memory approvedReportInfos = pendingSlashedMachineId2Renter[machineId];
         if (approvedReportInfos.length > 0) {
             require(
-                amount >= BASE_RESERVE_AMOUNT * approvedReportInfos.length, "amount must be greater than slash amount"
+                amount >= BASE_RESERVE_AMOUNT * approvedReportInfos.length,
+                StakeAmountLessThanReserve(machineId, amount)
             );
             for (uint8 i = 0; i < approvedReportInfos.length; i++) {
                 // pay slash to renters
@@ -265,9 +276,9 @@ contract NFTStaking is
     }
 
     function revertIfMachineInfoCanNotStake(uint256 calcPoint, string memory gpuType, uint256 mem) internal view {
-        require(mem >= 16, "memory size must greater than or equal to 16G");
-        require(toolContract.checkString(gpuType), "gpu type not match");
-        require(calcPoint > 0, "machine calc point not found");
+        require(mem >= 16, MemorySizeLessThan16G(mem));
+        require(toolContract.checkString(gpuType), GPUTypeNotMatch(gpuType));
+        require(calcPoint > 0, ZeroCalcPoint());
     }
 
     function stake(
@@ -276,26 +287,29 @@ contract NFTStaking is
         uint256[] calldata nftTokenIdBalances,
         uint256 rentId
     ) external nonReentrant {
-        require(nftTokenIds.length == nftTokenIdBalances.length, "nft token ids and balances length not match");
+        require(
+            nftTokenIds.length == nftTokenIdBalances.length,
+            InvalidNFTLength(nftTokenIds.length, nftTokenIdBalances.length)
+        );
         uint256 calcPoint = precompileContract.getMachineCalcPoint(machineId);
-        require(precompileContract.getMachineGPUCount(machineId) == 1, "only one gpu per machine can stake");
+        require(precompileContract.getMachineGPUCount(machineId) == 1, GPUCountNotEqualOne(machineId));
         uint256 cpuRate = precompileContract.getMachineCPURate(machineId);
-        //        require(cpuRate >= 3500, "cpu rate must be greater than or equal to 3500");
+        //        require(cpuRate >= 3500, "CPURateLessThan3500()");
         require(
             precompileContract.isMachineOwner(machineId, msg.sender) || dlcClientWalletAddress[msg.sender],
-            "sender must be machine owner or admin"
+            NotMachineOwnerOrAdmin(msg.sender)
         );
-        require(!rewardEnd(), "staking ended");
+        require(!rewardEnd(), StakingHasEnded());
 
         address stakeholder = msg.sender;
-        require(!isStaking(machineId), "machine already staked");
+        require(!isStaking(machineId), MachineIsStaking(machineId));
 
-//        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
-//        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
+        //        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
+        //        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
 
-        require(nftTokenIds.length > 0, "nft token ids is empty");
+        require(nftTokenIds.length > 0, ZeroNFTTokenIds());
         uint256 nftCount = getNFTCount(nftTokenIdBalances);
-        require(nftCount <= MAX_NFTS_PER_MACHINE, "nft count must be less than or equal to 20");
+        require(nftCount <= MAX_NFTS_PER_MACHINE, NFTCountGreaterThan20());
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
         //        if (rewardStartAtTimestamp > 0) {
@@ -352,8 +366,7 @@ contract NFTStaking is
         emit staked(stakeholder, machineId);
     }
 
-    function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) external {
-        require(msg.sender == address(rentContract), "sender must be rent contract");
+    function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) external onlyRentAddress {
         _joinStaking(machineId, calcPoint, reserveAmount);
     }
 
@@ -478,7 +491,7 @@ contract NFTStaking is
         return (availableRewardAmount, canClaimAmount, lockedAmount, claimedAmount);
     }
 
-    function claimAll() external nonReentrant{
+    function claimAll() external nonReentrant {
         string[] memory machineIds = holder2MachineIds[msg.sender];
         for (uint256 i = 0; i < machineIds.length; i++) {
             claim(machineIds[i]);
@@ -489,9 +502,12 @@ contract NFTStaking is
         address stakeholder = msg.sender;
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
 
-        require(getPendingSlashCount(machineId) == 0, "machine should restake and paid slash before claim");
+        require(
+            getPendingSlashCount(machineId) == 0,
+            NotPaidSlashBeforeClaim(machineId, getPendingSlashCount(machineId) * BASE_RESERVE_AMOUNT)
+        );
 
-        require(stakeInfo.holder == stakeholder, "not stakeholder");
+        require(stakeInfo.holder == stakeholder, NotStakeHolder(machineId, stakeholder));
         //        require(block.timestamp - stakeInfo.lastClaimAtTimestamp >= 1 days, "last claim less than 1 day");
 
         _claim(machineId);
@@ -517,10 +533,9 @@ contract NFTStaking is
         return (moveToReserveAmount, canClaimAmount);
     }
 
-
     function unStake(string calldata machineId) public nonReentrant {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        require(dlcClientWalletAddress[msg.sender] || msg.sender == stakeInfo.holder, "not dlc client wallet or owner");
+        require(!stakeInfo.isRentedByUser, MachineRentedByUser());
         //        require(stakeInfo.startAtTimestamp > 0, "staking not found");
         //        require(block.timestamp >= stakeInfo.endAtTimestamp, "staking not ended");
         _claim(machineId);
@@ -614,7 +629,7 @@ contract NFTStaking is
 
     function endRentMachine(string calldata machineId) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        require(stakeInfo.isRentedByUser, "not rented by user");
+        require(stakeInfo.isRentedByUser, MachineNotRented());
         stakeInfo.isRentedByUser = false;
 
         // 100 blocks
@@ -629,7 +644,7 @@ contract NFTStaking is
         emit EndRentMachine(machineId);
     }
 
-    function reportMachineFault(string calldata machineId, address renter) public onlyRentContractOrThis {
+    function reportMachineFault(string calldata machineId, address renter) public onlyRentContract {
         if (!rewardStart()) {
             return;
         }
@@ -839,7 +854,7 @@ contract NFTStaking is
     }
 
     function getRewardEndAtTimestamp(uint256 stakeEndAtTimestamp) internal view returns (uint256) {
-        if (rewardStartAtTimestamp == 0){
+        if (rewardStartAtTimestamp == 0) {
             return stakeEndAtTimestamp;
         }
         uint256 rewardEndAt = rewardStartAtTimestamp + REWARD_DURATION;
@@ -850,8 +865,7 @@ contract NFTStaking is
         return stakeEndAtTimestamp;
     }
 
-
-    function getStakeEndTimestamp(string calldata machineId) public view returns(uint256)  {
+    function getStakeEndTimestamp(string calldata machineId) public view returns (uint256) {
         StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
         uint256 endEndAtBlockNumber = precompileContract.getOwnerRentEndAt("machineId", stakeInfo.rentId);
         uint256 endEndAtTimestamp = (endEndAtBlockNumber - block.number) * SECONDS_PER_BLOCK + block.timestamp;

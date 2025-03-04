@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Script} from "forge-std/Script.sol";
 import {Rent} from "../../src/rent/Rent.sol";
@@ -45,9 +45,7 @@ contract Deploy is Script {
 
         proxy = Upgrades.deployUUPSProxy(
             "Rent.sol:Rent",
-            abi.encodeCall(
-                Rent.initialize, (msg.sender, precompileContract, stakingProxy, rewardTokenContract)
-            )
+            abi.encodeCall(Rent.initialize, (msg.sender, precompileContract, stakingProxy, rewardTokenContract))
         );
         return (proxy, logic);
     }

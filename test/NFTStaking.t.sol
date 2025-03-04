@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/Test.sol";
 import {Rent} from "../src/rent/Rent.sol";
@@ -46,17 +46,9 @@ contract StakingTest is Test {
         rent = Rent(address(proxy));
 
         NFTStaking(address(proxy1)).initialize(
-            owner,
-            address(nftToken),
-            address(rewardToken),
-            address(rent),
-            address(tool),
-            address(precompileContract),
-            1
+            owner, address(nftToken), address(rewardToken), address(rent), address(tool), address(precompileContract), 1
         );
-        Rent(address(proxy)).initialize(
-            owner, address(precompileContract), address(nftStaking),  address(rewardToken)
-        );
+        Rent(address(proxy)).initialize(owner, address(precompileContract), address(nftStaking), address(rewardToken));
         deal(address(rewardToken), address(this), 10000000 * 1e18);
         deal(address(rewardToken), owner, 360000000 * 1e18);
         rewardToken.approve(address(nftStaking), 360000000 * 1e18);
