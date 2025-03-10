@@ -7,9 +7,7 @@ import {NFTStaking} from "../src/NFTStaking.sol";
 import {IPrecompileContract} from "../src/interface/IPrecompileContract.sol";
 
 import {IRewardToken} from "../src/interface/IRewardToken.sol";
-import {ITool} from "../src/interface/ITool.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "../src/Tool.sol";
 import {Token} from "./MockRewardToken.sol";
 import "./MockERC1155.t.sol";
 
@@ -20,7 +18,6 @@ contract StakingTest is Test {
     Token public rewardToken;
     DLCNode public nftToken;
 
-    Tool public tool;
     address owner = address(0x01);
     address admin2 = address(0x02);
     address admin3 = address(0x03);
@@ -35,10 +32,6 @@ contract StakingTest is Test {
         rewardToken = new Token();
         nftToken = new DLCNode(owner);
 
-        ERC1967Proxy proxy3 = new ERC1967Proxy(address(new Tool()), "");
-        Tool(address(proxy3)).initialize(owner);
-        tool = Tool(address(proxy3));
-
         ERC1967Proxy proxy1 = new ERC1967Proxy(address(new NFTStaking()), "");
         nftStaking = NFTStaking(address(proxy1));
 
@@ -46,7 +39,7 @@ contract StakingTest is Test {
         rent = Rent(address(proxy));
 
         NFTStaking(address(proxy1)).initialize(
-            owner, address(nftToken), address(rewardToken), address(rent), address(tool), address(precompileContract), 1
+            owner, address(nftToken), address(rewardToken), address(rent), address(precompileContract), 1
         );
         Rent(address(proxy)).initialize(owner, address(precompileContract), address(nftStaking), address(rewardToken));
         deal(address(rewardToken), address(this), 10000000 * 1e18);

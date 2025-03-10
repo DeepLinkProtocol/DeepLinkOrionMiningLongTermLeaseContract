@@ -387,7 +387,6 @@ contract NFTStakingState {
     }
 
     function getStateSummary() public view returns (StateSummary memory) {
-
         return StateSummary({
             totalCalcPoint: totalCalcPoint,
             totalGPUCount: totalGpuCount,

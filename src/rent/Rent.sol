@@ -107,10 +107,23 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     address public canUpgradeAddress;
 
     event RentMachine(
-        uint256 rentId, string machineId, uint256 rentEndTime, uint8 gpuCount, address renter, uint256 rentFee
+        address indexed machineOnwer,
+        uint256 rentId,
+        string machineId,
+        uint256 rentEndTime,
+        address renter,
+        uint256 rentFee
     );
-    event RenewRent(uint256 rentId, uint256 additionalRentSeconds, uint256 additionalRentFee, address renter);
-    event EndRentMachine(uint256 rentId, string machineId, uint256 rentEndTime, address renter);
+    event RenewRent(
+        address indexed machineOnwer,
+        string  machineId,
+        uint256 rentId,
+        uint256 additionalRentSeconds,
+        uint256 additionalRentFee,
+        address renter
+    );
+    event EndRentMachine(address machineOnwer, uint256 rentId, string machineId, uint256 rentEndTime, address renter);
+
     event ReportMachineFault(uint256 rentId, string machineId, address reporter);
     event BurnedFee(
         string machineId, uint256 rentId, uint256 burnTime, uint256 burnDLCAmount, address renter, uint8 rentGpuCount
@@ -142,8 +155,9 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     error ReserveAmountForReportShouldBe10000();
     error ReportedMachineNotFound();
     error VoteFinished();
+    error RewardNotStart();
 
-    modifier onlyApproveAdmins() {
+modifier onlyApproveAdmins() {
         bool found = false;
         for (uint8 i = 0; i < adminsToApprove.length; i++) {
             if (msg.sender == adminsToApprove[i]) {
@@ -247,6 +261,11 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             return false;
         }
 
+        (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
+        if (rewardEndAt == 60 days){
+            return false;
+        }
+
         if (!stakingContract.isStaking(machineId)) {
             return false;
         }
@@ -265,10 +284,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     }
 
     function getMachinePrice(string memory machineId, uint256 rentSeconds) public view returns (uint256) {
-        (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
-        if (rewardEndAt == 60 days) {
-            return 1 ether * rentSeconds / 1 hours;
-        }
         uint256 calcPointInFact = precompileContract.getMachineCalcPoint(machineId);
         require(calcPointInFact > 0, ZeroCalcPoint());
 
@@ -287,7 +302,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
+        require(rewardEndAt > 60 days, RewardNotStart());
+
         uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
+
         require(rentSeconds <= maxRentDuration, RentDurationTooLong(rentSeconds, maxRentDuration));
 
         uint256 lastRentEndBlock = machineId2LastRentEndBlock[machineId];
@@ -343,7 +361,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         stakingContract.setBurnedRentFee(machineHolder, machineId, rentFeeInFact);
         stakingContract.addRentedGPUCount(machineHolder, machineId);
 
-        emit RentMachine(lastRentId, machineId, block.timestamp + rentSeconds, 1, msg.sender, rentFeeInFact);
+        emit RentMachine(machineHolder,lastRentId, machineId, block.timestamp + rentSeconds,  msg.sender, rentFeeInFact);
     }
 
     function renewRent(string memory machineId, uint256 additionalRentSeconds) external {
@@ -355,7 +373,12 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
-        uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
+        uint256 maxRentDuration;
+        if (rewardEndAt == 60 days) {
+            maxRentDuration = Math.min(endAtTimestamp - block.timestamp, 60 days);
+        } else {
+            maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
+        }
         uint256 newRentDuration = rentId2RentInfo[rentId].rentEndTime - block.timestamp + additionalRentSeconds;
         require(additionalRentSeconds <= maxRentDuration, RentDurationTooLong(newRentDuration, maxRentDuration));
 
@@ -387,7 +410,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         totalBurnedAmount += additionalRentFeeInFact;
 
         stakingContract.setBurnedRentFee(machineHolder, machineId, additionalRentFeeInFact);
-        emit RenewRent(rentId, additionalRentSeconds, additionalRentFeeInFact, msg.sender);
+        emit RenewRent(machineHolder,machineId,rentId, additionalRentSeconds, additionalRentFeeInFact, msg.sender);
     }
 
     function endRentMachine(string calldata machineId) external {
@@ -406,7 +429,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         stakingContract.endRentMachine(machineId);
         machineId2LastRentEndBlock[machineId] = block.number;
-        emit EndRentMachine(rentId, machineId, rentInfo.rentEndTime, rentInfo.renter);
+        emit EndRentMachine(machineHolder,rentId, machineId, rentInfo.rentEndTime, rentInfo.renter);
     }
 
     function getMachineHolderAndCalcPoint(string memory machineId) internal view returns (address, uint256) {
