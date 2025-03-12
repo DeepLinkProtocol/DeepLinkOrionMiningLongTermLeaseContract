@@ -112,7 +112,7 @@ contract OldNFTStaking is
     error ZeroCalcPoint();
     error InvalidNFTLength(uint256 tokenIdLength, uint256 balanceLength);
     error GPUCountNotEqualOne(string machineId);
-    error CPURateLessThan3500(string machineId);
+    error CPURateLessThan3500();
     error NotMachineOwnerOrAdmin(address);
     error StakingHasEnded();
     error ZeroNFTTokenIds();
@@ -293,7 +293,7 @@ contract OldNFTStaking is
         uint256 calcPoint = precompileContract.getMachineCalcPoint(machineId);
         require(precompileContract.getMachineGPUCount(machineId) == 1, GPUCountNotEqualOne(machineId));
         uint256 cpuRate = precompileContract.getMachineCPURate(machineId);
-        //        require(cpuRate >= 3500, "CPURateLessThan3500()");
+        require(cpuRate >= 3500, CPURateLessThan3500());
         require(
             precompileContract.isMachineOwner(machineId, msg.sender) || dlcClientWalletAddress[msg.sender],
             NotMachineOwnerOrAdmin(msg.sender)
@@ -312,10 +312,10 @@ contract OldNFTStaking is
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
 
-        //        require(
-        //            (rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days,
-        //            RentTimeMustGreaterThan50Days()
-        //        );
+        require(
+            (rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days,
+            RentTimeMustGreaterThan50Days()
+        );
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
@@ -843,7 +843,6 @@ contract OldNFTStaking is
             return stakeEndAtTimestamp;
         }
         uint256 rewardEndAt = rewardStartAtTimestamp + REWARD_DURATION;
-        uint256 currentTime = block.timestamp;
         if (stakeEndAtTimestamp > rewardEndAt) {
             return rewardEndAt;
         }
