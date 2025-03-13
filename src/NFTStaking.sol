@@ -305,7 +305,6 @@ contract NFTStaking is
         );
         require(!rewardEnd(), StakingHasEnded());
 
-        StakeInfo storage oldStakeInfo = machineId2StakeInfos[machineId];
         require(!isStaking(machineId), MachineIsStaking(machineId));
 
         //        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
@@ -560,6 +559,7 @@ contract NFTStaking is
         stakeInfo.nftTokenIds = new uint256[](0);
         stakeInfo.tokenIdBalances = new uint256[](0);
         stakeInfo.nftCount = 0;
+        stakeInfo.rentId = 0;
         _joinStaking(machineId, 0, 0);
         totalStakingGpuCount -= Math.min(stakeInfo.gpuCount, 0);
         removeStakingMachineFromHolder(stakeholder, machineId);
@@ -693,11 +693,14 @@ contract NFTStaking is
         )
     {
         StakeInfo memory info = machineId2StakeInfos[machineId];
-        uint256 rentEndAtBlock = precompileContract.getOwnerRentEndAt(machineId, info.rentId);
         uint256 rentEndAtTimestamp;
-        if (rentEndAtBlock > block.number) {
-            rentEndAtTimestamp = (rentEndAtBlock - block.number) * SECONDS_PER_BLOCK + block.timestamp;
+        if (info.rentId >0){
+            uint256 rentEndAtBlock = precompileContract.getOwnerRentEndAt(machineId, info.rentId);
+            if (rentEndAtBlock > block.number) {
+                rentEndAtTimestamp = (rentEndAtBlock - block.number) * SECONDS_PER_BLOCK + block.timestamp;
+            }
         }
+
         return (
             info.holder,
             info.calcPoint,
