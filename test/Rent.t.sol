@@ -45,6 +45,10 @@ contract RentTest is Test {
         rewardToken.approve(address(nftStaking), 360000000 * 1e18);
         deal(address(rewardToken), address(nftStaking), 360000000 * 1e18);
         nftStaking.setRewardStartAt(block.timestamp);
+        address[] memory admins = new address[](1);
+        admins[0] = owner;
+
+        nftStaking.setDLCClientWallets(admins);
 
         vm.stopPrank();
     }
@@ -385,7 +389,7 @@ contract RentTest is Test {
         uint256[] memory nftTokensBalance = new uint256[](1);
         nftTokens[0] = 1;
         nftTokensBalance[0] = 1;
-        nftStaking.stake(machineId, nftTokens, nftTokensBalance, stakeHours);
+        nftStaking.stake(owner, machineId, nftTokens, nftTokensBalance, stakeHours);
         nftStaking.addDLCToStake(machineId, reserveAmount);
         vm.stopPrank();
         uint256 totalCalcPointBeforeRent = nftStaking.totalCalcPoint();
@@ -447,7 +451,7 @@ contract RentTest is Test {
         uint256[] memory nftTokensBalance = new uint256[](1);
         nftTokens[0] = 1;
         nftTokensBalance[0] = 1;
-        nftStaking.stake(machineId, nftTokens, nftTokensBalance, 2);
+        nftStaking.stake(owner, machineId, nftTokens, nftTokensBalance, 2);
 
         uint256 fee = rent.getMachinePrice(machineId, 3600);
         console.log("fee: {}", fee);

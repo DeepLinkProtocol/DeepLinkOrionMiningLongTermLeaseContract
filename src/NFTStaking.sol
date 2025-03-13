@@ -81,11 +81,11 @@ contract NFTStaking is
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
     mapping(string => StakeInfo) public machineId2StakeInfos;
 
-    event Staked(address indexed stakeholder, string machineId,uint256 originCalcPoint, uint256 calcPoint);
+    event Staked(address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint);
     event AddedStakeHours(address indexed stakeholder, string machineId, uint256 stakeHours);
 
     event ReserveDLC(string machineId, uint256 amount);
-    event Unstaked(address indexed stakeholder, string machineId,uint256 paybackReserveAmount);
+    event Unstaked(address indexed stakeholder, string machineId, uint256 paybackReserveAmount);
     event Claimed(
         address indexed stakeholder,
         string machineId,
@@ -282,6 +282,7 @@ contract NFTStaking is
     }
 
     function stake(
+        address stakeholder,
         string calldata machineId,
         uint256[] calldata nftTokenIds,
         uint256[] calldata nftTokenIdBalances,
@@ -298,13 +299,13 @@ contract NFTStaking is
         require(precompileContract.getMachineGPUCount(machineId) == 1, GPUCountNotEqualOne(machineId));
         uint256 cpuRate = precompileContract.getMachineCPURate(machineId);
         require(cpuRate >= 3500, CPURateLessThan3500());
+
         require(
-            precompileContract.isMachineOwner(machineId, msg.sender) || dlcClientWalletAddress[msg.sender],
-            NotMachineOwnerOrAdmin(msg.sender)
+            precompileContract.isMachineOwner(machineId, stakeholder) && dlcClientWalletAddress[msg.sender],
+            NotMachineOwnerOrAdmin(stakeholder)
         );
         require(!rewardEnd(), StakingHasEnded());
 
-        address stakeholder = msg.sender;
         require(!isStaking(machineId), MachineIsStaking(machineId));
 
         (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
@@ -316,7 +317,6 @@ contract NFTStaking is
         uint256 originCalcPoint = calcPoint;
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-
         require(
             (rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days,
             RentTimeMustGreaterThan50Days()
@@ -361,7 +361,7 @@ contract NFTStaking is
         NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
 
-        emit Staked(stakeholder, machineId,originCalcPoint, calcPoint);
+        emit Staked(stakeholder, machineId, originCalcPoint, calcPoint);
     }
 
     function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) external onlyRentAddress {
@@ -563,7 +563,7 @@ contract NFTStaking is
         totalStakingGpuCount -= Math.min(stakeInfo.gpuCount, 0);
         removeStakingMachineFromHolder(stakeholder, machineId);
         NFTStakingState.removeMachine(stakeInfo.holder, machineId);
-        emit Unstaked(stakeholder, machineId,reservedAmount);
+        emit Unstaked(stakeholder, machineId, reservedAmount);
     }
 
     function removeStakingMachineFromHolder(address holder, string memory machineId) internal {
@@ -584,9 +584,8 @@ contract NFTStaking is
 
     function isStaking(string memory machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
-        uint256 ownerRentEndBlockNumber = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
-        bool _isStaking = stakeInfo.holder != address(0) && stakeInfo.startAtTimestamp > 0
-            && block.number < ownerRentEndBlockNumber && stakeInfo.endAtTimestamp == 0;
+        bool _isStaking =
+            stakeInfo.holder != address(0) && stakeInfo.startAtTimestamp > 0 && stakeInfo.endAtTimestamp == 0;
 
         return _isStaking;
     }

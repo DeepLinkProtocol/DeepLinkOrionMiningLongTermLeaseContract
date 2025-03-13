@@ -116,7 +116,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     );
     event RenewRent(
         address indexed machineOnwer,
-        string  machineId,
+        string machineId,
         uint256 rentId,
         uint256 additionalRentSeconds,
         uint256 additionalRentFee,
@@ -157,7 +157,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     error VoteFinished();
     error RewardNotStart();
 
-modifier onlyApproveAdmins() {
+    modifier onlyApproveAdmins() {
         bool found = false;
         for (uint8 i = 0; i < adminsToApprove.length; i++) {
             if (msg.sender == adminsToApprove[i]) {
@@ -262,7 +262,7 @@ modifier onlyApproveAdmins() {
         }
 
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
-        if (rewardEndAt == 60 days){
+        if (rewardEndAt == 60 days) {
             return false;
         }
 
@@ -361,7 +361,7 @@ modifier onlyApproveAdmins() {
         stakingContract.setBurnedRentFee(machineHolder, machineId, rentFeeInFact);
         stakingContract.addRentedGPUCount(machineHolder, machineId);
 
-        emit RentMachine(machineHolder,lastRentId, machineId, block.timestamp + rentSeconds,  msg.sender, rentFeeInFact);
+        emit RentMachine(machineHolder, lastRentId, machineId, block.timestamp + rentSeconds, msg.sender, rentFeeInFact);
     }
 
     function renewRent(string memory machineId, uint256 additionalRentSeconds) external {
@@ -410,7 +410,7 @@ modifier onlyApproveAdmins() {
         totalBurnedAmount += additionalRentFeeInFact;
 
         stakingContract.setBurnedRentFee(machineHolder, machineId, additionalRentFeeInFact);
-        emit RenewRent(machineHolder,machineId,rentId, additionalRentSeconds, additionalRentFeeInFact, msg.sender);
+        emit RenewRent(machineHolder, machineId, rentId, additionalRentSeconds, additionalRentFeeInFact, msg.sender);
     }
 
     function endRentMachine(string calldata machineId) external {
@@ -429,7 +429,7 @@ modifier onlyApproveAdmins() {
 
         stakingContract.endRentMachine(machineId);
         machineId2LastRentEndBlock[machineId] = block.number;
-        emit EndRentMachine(machineHolder,rentId, machineId, rentInfo.rentEndTime, rentInfo.renter);
+        emit EndRentMachine(machineHolder, rentId, machineId, rentInfo.rentEndTime, rentInfo.renter);
     }
 
     function getMachineHolderAndCalcPoint(string memory machineId) internal view returns (address, uint256) {
