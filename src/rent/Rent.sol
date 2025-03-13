@@ -275,7 +275,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
             return false;
         }
 
-        if (nextRenterCanRentAt > block.timestamp) {
+        if (nextRenterCanRentAt > block.timestamp || nextRenterCanRentAt == 0) {
             // not reach the start rent block number yet
             return false;
         }

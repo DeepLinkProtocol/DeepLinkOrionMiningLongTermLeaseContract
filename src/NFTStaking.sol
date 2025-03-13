@@ -81,7 +81,9 @@ contract NFTStaking is
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
     mapping(string => StakeInfo) public machineId2StakeInfos;
 
-    event Staked(address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint);
+    event Staked(
+        address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType
+    );
     event AddedStakeHours(address indexed stakeholder, string machineId, uint256 stakeHours);
 
     event ReserveDLC(string machineId, uint256 amount);
@@ -98,7 +100,7 @@ contract NFTStaking is
     //    event AddNFTs(string machineId, uint256[] nftTokenIds);
     event PaySlash(string machineId, address renter, uint256 slashAmount);
     event RentMachine(address indexed machineOwner, string machineId);
-    event EndRentMachine(address indexed machineOwner, string machineId);
+    event EndRentMachine(address indexed machineOwner, string machineId, uint256 nextCanRentTime);
     event ReportMachineFault(string machineId, address renter);
     event DepositReward(uint256 amount);
 
@@ -317,10 +319,7 @@ contract NFTStaking is
         uint256 originCalcPoint = calcPoint;
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-        require(
-            (rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days,
-            RentTimeMustGreaterThan50Days()
-        );
+        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days, RentTimeMustGreaterThan50Days());
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
@@ -361,7 +360,7 @@ contract NFTStaking is
         NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
 
-        emit Staked(stakeholder, machineId, originCalcPoint, calcPoint);
+        emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType);
     }
 
     function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) external onlyRentAddress {
@@ -626,6 +625,14 @@ contract NFTStaking is
 
         // 100 blocks
         stakeInfo.nextRenterCanRentAt = 600 + block.timestamp;
+        uint256 rentEndAtTimestamp;
+        uint256 rentEndAtBlock = precompileContract.getOwnerRentEndAt(machineId,stakeInfo.rentId);
+        if (rentEndAtBlock > block.number) {
+            rentEndAtTimestamp = (rentEndAtBlock - block.number) * SECONDS_PER_BLOCK + block.timestamp;
+        }
+        if (rentEndAtTimestamp == 0 || block.timestamp > rentEndAtTimestamp - 1 hours) {
+            stakeInfo.nextRenterCanRentAt = 0;
+        }
 
         uint256 newCalcPoint = (stakeInfo.calcPoint * 10) / 13;
         _joinStaking(machineId, newCalcPoint, stakeInfo.reservedAmount);
@@ -633,7 +640,7 @@ contract NFTStaking is
 
         NFTStakingState.subRentedGPUCount(stakeInfo.holder, machineId);
 
-        emit EndRentMachine(stakeInfo.holder, machineId);
+        emit EndRentMachine(stakeInfo.holder, machineId, stakeInfo.nextRenterCanRentAt);
     }
 
     function reportMachineFault(string calldata machineId, address renter) public onlyRentContract {
@@ -694,7 +701,7 @@ contract NFTStaking is
     {
         StakeInfo memory info = machineId2StakeInfos[machineId];
         uint256 rentEndAtTimestamp;
-        if (info.rentId >0){
+        if (info.rentId > 0) {
             uint256 rentEndAtBlock = precompileContract.getOwnerRentEndAt(machineId, info.rentId);
             if (rentEndAtBlock > block.number) {
                 rentEndAtTimestamp = (rentEndAtBlock - block.number) * SECONDS_PER_BLOCK + block.timestamp;

@@ -312,10 +312,7 @@ contract OldNFTStaking is
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
 
-        require(
-            (rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days,
-            RentTimeMustGreaterThan50Days()
-        );
+        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days, RentTimeMustGreaterThan50Days());
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
