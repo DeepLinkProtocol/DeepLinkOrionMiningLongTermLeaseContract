@@ -130,6 +130,7 @@ contract NFTStaking is
     error MachineNotRented();
     error MachineIsStakingInShortTerm();
     error RentTimeMustGreaterThan50Days();
+    error StakingNotEnd();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -540,7 +541,7 @@ contract NFTStaking is
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         require(!stakeInfo.isRentedByUser, MachineRentedByUser());
         //        require(stakeInfo.startAtTimestamp > 0, "staking not found");
-        //        require(block.timestamp >= stakeInfo.endAtTimestamp, "staking not ended");
+        require(block.timestamp >= stakeInfo.endAtTimestamp, StakingNotEnd());
         _claim(machineId);
         _unStake(machineId, stakeInfo.holder);
     }
