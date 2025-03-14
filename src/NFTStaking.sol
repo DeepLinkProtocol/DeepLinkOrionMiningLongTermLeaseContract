@@ -300,8 +300,8 @@ contract NFTStaking is
         );
         uint256 calcPoint = precompileContract.getMachineCalcPoint(machineId);
         require(precompileContract.getMachineGPUCount(machineId) == 1, GPUCountNotEqualOne(machineId));
-        uint256 cpuRate = precompileContract.getMachineCPURate(machineId);
-        require(cpuRate >= 3500, CPURateLessThan3500());
+//        uint256 cpuRate = precompileContract.getMachineCPURate(machineId);
+//        require(cpuRate >= 3500, CPURateLessThan3500());
 
         require(
             precompileContract.isMachineOwner(machineId, stakeholder) && dlcClientWalletAddress[msg.sender],
@@ -312,7 +312,7 @@ contract NFTStaking is
         require(!isStaking(machineId), MachineIsStaking(machineId));
 
         (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
-        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
+//        revertIfMachineInfoCanNotStake(calcPoint, gpuType, mem);
 
         require(nftTokenIds.length > 0, ZeroNFTTokenIds());
         uint256 nftCount = getNFTCount(nftTokenIdBalances);
@@ -320,7 +320,7 @@ contract NFTStaking is
         uint256 originCalcPoint = calcPoint;
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days, RentTimeMustGreaterThan50Days());
+//        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days, RentTimeMustGreaterThan50Days());
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
