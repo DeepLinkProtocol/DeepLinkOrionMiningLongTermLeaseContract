@@ -82,8 +82,9 @@ contract NFTStaking is
     mapping(string => StakeInfo) public machineId2StakeInfos;
 
     event Staked(
-        address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType
+        address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType, uint256 rentEndTime
     );
+
     event AddedStakeHours(address indexed stakeholder, string machineId, uint256 stakeHours);
 
     event ReserveDLC(string machineId, uint256 amount);
@@ -359,8 +360,11 @@ contract NFTStaking is
         }
         NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
-
-        emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType);
+        uint256 rentEntTime = (rentEndAt - block.number) *SECONDS_PER_BLOCK;
+        if (rewardStart()){
+            rentEntTime = Math.min(rentEntTime, rewardStartAtTimestamp + REWARD_DURATION);
+        }
+        emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType, rentEntTime);
     }
 
     function joinStaking(string memory machineId, uint256 calcPoint, uint256 reserveAmount) external onlyRentAddress {
