@@ -80,6 +80,9 @@ contract NFTStaking is
     mapping(address => string[]) public holder2MachineIds;
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
     mapping(string => StakeInfo) public machineId2StakeInfos;
+    mapping(string => bool) private statedMachinesMap;
+    string[] public stakedMachineIds;
+
 
     event Staked(
         address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType, uint256 rentEndTime
@@ -327,7 +330,11 @@ contract NFTStaking is
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
-        totalGpuCount += gpuCount;
+        if (statedMachinesMap[machineId]){
+            stakedMachineIds.push(machineId);
+            statedMachinesMap[machineId] = true;
+            totalGpuCount += gpuCount;
+        }
         totalStakingGpuCount += gpuCount;
         if (totalGpuCount >= rewardStartGPUThreshold && rewardStartAtTimestamp == 0) {
             rewardStartAtTimestamp = currentTime;
@@ -570,7 +577,9 @@ contract NFTStaking is
         stakeInfo.nftCount = 0;
         stakeInfo.rentId = 0;
         _joinStaking(machineId, 0, 0);
-        totalStakingGpuCount -= Math.min(stakeInfo.gpuCount, 0);
+        if (totalStakingGpuCount > 0){
+            totalStakingGpuCount -= 1;
+        }
         removeStakingMachineFromHolder(stakeholder, machineId);
         NFTStakingState.removeMachine(stakeInfo.holder, machineId);
         emit Unstaked(stakeholder, machineId, reservedAmount);
@@ -890,5 +899,32 @@ contract NFTStaking is
 
     function version() external pure returns (uint256) {
         return 1;
+    }
+
+
+    function tmp() external onlyOwner  {
+        uint256 totalStaked = 0;
+        for(uint256 i = 0; i < stakedMachineIds.length; i++){
+            if (statedMachinesMap[stakedMachineIds[i]]){
+                totalStaked += 1;
+                statedMachinesMap[stakedMachineIds[i]] = true;
+            }
+        }
+        string[] memory staked = new string[](totalStakingGpuCount);
+        uint256 j = 0;
+        for(uint256 i = 0; i < stakedMachineIds.length; i++){
+            if (statedMachinesMap[stakedMachineIds[i]]){
+                staked[j] = stakedMachineIds[i];
+                j++;
+            }
+        }
+
+        stakedMachineIds = new string[](0);
+        for(uint256 i = 0; i < staked.length; i++){
+            stakedMachineIds.push(staked[i]);
+        }
+
+        totalGpuCount = stakedMachineIds.length;
+        totalStakingGpuCount = machineIds.length;
     }
 }
