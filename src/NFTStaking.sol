@@ -326,7 +326,7 @@ contract NFTStaking is
         uint256 originCalcPoint = calcPoint;
         calcPoint = calcPoint * nftCount;
         uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 50 days, RentTimeMustGreaterThan50Days());
+        require((rentEndAt - block.number) * SECONDS_PER_BLOCK >= 10 days, RentTimeMustGreaterThan50Days());
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
@@ -926,5 +926,10 @@ contract NFTStaking is
 
         totalGpuCount = stakedMachineIds.length;
         totalStakingGpuCount = machineIds.length;
+    }
+
+    function renewRentMachine(string memory machineId, uint256 rentFee) external onlyRentAddress {
+        StakeInfo memory stakeInfo = machineId2StakeInfos[machineId];
+        emit RenewRent(machineId, stakeInfo.holder, rentFee);
     }
 }

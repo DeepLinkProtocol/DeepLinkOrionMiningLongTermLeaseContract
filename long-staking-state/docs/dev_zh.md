@@ -11,32 +11,34 @@
 ```graphql
     type StateSummary @entity {
         id: Bytes!
-        totalGPUCount: BigInt! # uint256
-        totalStakingGPUCount: BigInt! # uint256
-        totalCalcPointPoolCount: BigInt! # uint256
-        totalRentedGPUCount: BigInt! # uint256
-        totalBurnedRentFee: BigInt! # uint256
-        totalReservedAmount: BigInt! # uint256
+        totalGPUCount: BigInt! # uint256  // 参与质押过质押的gpu总数
+        totalStakingGPUCount: BigInt! # uint256 // 处于质押中的gpu总数
+        totalCalcPointPoolCount: BigInt! # uint256 // 算力池总数
+        totalRentedGPUCount: BigInt! # uint256 // 被租用的gpu总数
+        totalBurnedRentFee: BigInt! # uint256 // 已销毁的租用费用
+        totalReservedAmount: BigInt! # uint256 // 质押的总金额
     }
 
 ```
 
 ```graphql
     type StakeHolder @entity {
-    id: Bytes!
-    holder: Bytes! # address 矿工地址
-    totalCalcPoint: BigInt! # uint256  总的机器原始算力 (不包含质押nft/租用等行为 对算力的增幅)
-    fullTotalCalcPoint: BigInt! # uint256 总的机器膨胀算力 (包含质押nft/租用等行为 对算力的增幅)
-    totalGPUCount: BigInt! # uint256 总的参与过质押的gpu个数
-    totalStakingGPUCount: BigInt! # uint256 总的处于质押中的gpu个数
-    rentedGPUCount: BigInt! # uint256 被租用中的gpu个数
-    totalReservedAmount: BigInt! # uint256 质押的总金额
-    burnedRentFee: BigInt! # uint256 已销毁的租用费用
-    totalClaimedRewardAmount: BigInt! # uint256 已领取的奖励金额
-    totalReleasedRewardAmount: BigInt! # uint256 已释放的奖励金额
-    blockNumber: BigInt!
-    blockTimestamp: BigInt!
-    transactionHash: Bytes!
+        id: Bytes!
+        holder: Bytes! # address 矿工地址
+        totalCalcPoint: BigInt! # uint256  总的机器原始算力 (不包含质押nft/租用等行为 对算力的增幅)
+        fullTotalCalcPoint: BigInt! # uint256 总的机器膨胀算力 (包含质押nft/租用等行为 对算力的增幅)
+        totalGPUCount: BigInt! # uint256 总的参与过质押的gpu个数
+        totalStakingGPUCount: BigInt! # uint256 总的处于质押中的gpu个数
+        rentedGPUCount: BigInt! # uint256 被租用中的gpu个数
+        totalReservedAmount: BigInt! # uint256 质押的总金额
+        burnedRentFee: BigInt! # uint256 已销毁的租用费用
+        totalClaimedRewardAmount: BigInt! # uint256 已领取的奖励金额
+        totalReleasedRewardAmount: BigInt! # uint256 已释放的奖励金额
+        blockNumber: BigInt!
+        blockTimestamp: BigInt!
+        transactionHash: Bytes!
+        machineInfos: [MachineInfo!]! @derivedFrom(field: "holder") # 关联的机器信息
+    }
 ```
 
 ```graphql

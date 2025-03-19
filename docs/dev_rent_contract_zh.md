@@ -86,7 +86,7 @@ Rent 合约是一个基于 Solidity 的智能合约，用于管理租赁机器�
     - `machineId`: 机器 ID
 - 返回信息: address 租用人地址
 
-### `function isInSlashing(string memory machineId) public view returns(bool)`
+### `isInSlashing(string memory machineId) public view returns(bool)`
 - 描述: 获取机器是否处于惩罚状态
 - 参数:
   - `machineId`: 机器 ID

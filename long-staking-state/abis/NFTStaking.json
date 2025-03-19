@@ -261,6 +261,11 @@
   },
   {
     "inputs": [],
+    "name": "StakingNotEnd",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TimestampLessThanCurrent",
     "type": "error"
   },
@@ -368,32 +373,6 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "string",
-        "name": "machineId",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "holder",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "MoveToReserveAmount",
-    "type": "event"
-  },
-
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
@@ -444,6 +423,31 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "string",
+        "name": "machineId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "holder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "MoveToReserveAmount",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "previousOwner",
@@ -482,6 +486,31 @@
       }
     ],
     "name": "PaySlash",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "machineId",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "holder",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "rentFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "RenewRent",
     "type": "event"
   },
   {
@@ -613,25 +642,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "string",
-        "name": "machineId",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "gpuType",
-        "type": "string"
-      }
-    ],
-    "name": "StakedGPUType",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "address",
         "name": "stakeholder",
@@ -716,24 +726,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "string",
-        "name": "machineId",
-        "type": "string"
-      },
-      {
-        "internalType": "address",
-        "name": "renter",
-        "type": "address"
-      }
-    ],
-    "name": "PaySlash1",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1876,6 +1868,24 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "machineId",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rentFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "renewRentMachine",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "renounceOwnership",
     "outputs": [],
@@ -1901,6 +1911,11 @@
         "internalType": "string",
         "name": "machineId",
         "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rentFee",
+        "type": "uint256"
       }
     ],
     "name": "rentMachine",
@@ -2173,6 +2188,21 @@
         "internalType": "string",
         "name": "machineId",
         "type": "string"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "nftTokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "nftTokenIdBalances",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "rentId",
+        "type": "uint256"
       }
     ],
     "name": "stake",
@@ -2237,6 +2267,25 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "stakedMachineIds",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes4",
         "name": "interfaceId",
         "type": "bytes4"
@@ -2251,6 +2300,13 @@
       }
     ],
     "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "tmp",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
