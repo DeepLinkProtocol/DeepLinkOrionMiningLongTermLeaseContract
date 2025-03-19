@@ -17,6 +17,7 @@
         totalRentedGPUCount: BigInt! # uint256 // 被租用的gpu总数
         totalBurnedRentFee: BigInt! # uint256 // 已销毁的租用费用
         totalReservedAmount: BigInt! # uint256 // 质押的总金额
+        totalCalcPoint: BigInt! # uint256 // 总的机器原始算力 (不包含质押nft/租用等行为 对算力的增幅)
     }
 
 ```
@@ -62,6 +63,7 @@
         nextCanRentTimestamp: BigInt! # uint256 下次可租用时间戳（秒）
         isStaking: Boolean! # 是否处于质押状态
         online: Boolean! # 是否在线
+        isRented: Boolean! # 是否被租用
         registered: Boolean! # 是否注册
         gpuType: String! # string gpu类型
     }

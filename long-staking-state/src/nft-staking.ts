@@ -232,6 +232,7 @@ export function handleStaked(event: StakedEvent): void {
   machineInfo.online = true
   machineInfo.registered = true
 
+
   let stakeholder = StakeHolder.load(Bytes.fromHexString(event.params.stakeholder.toHexString()))
   if (stakeholder == null) {
     stakeholder = new StakeHolder(Bytes.fromHexString(event.params.stakeholder.toHexString()))
@@ -273,9 +274,11 @@ export function handleStaked(event: StakedEvent): void {
     stateSummary.totalRentedGPUCount = BigInt.fromI32(0)
     stateSummary.totalBurnedRentFee = BigInt.fromI32(0)
     stateSummary.totalReservedAmount = BigInt.fromI32(0)
+    stateSummary.totalCalcPoint = BigInt.fromI32(0)
   }
   if (isNewMachine){
     stateSummary.totalGPUCount = stateSummary.totalGPUCount.plus(BigInt.fromI32(1))
+    stateSummary.totalCalcPoint = stateSummary.totalCalcPoint.plus(machineInfo.totalCalcPoint)
   }
   stateSummary.totalStakingGPUCount = stateSummary.totalStakingGPUCount.plus(BigInt.fromI32(1))
   if (stakeholder.totalStakingGPUCount.toU32() == 1) {
