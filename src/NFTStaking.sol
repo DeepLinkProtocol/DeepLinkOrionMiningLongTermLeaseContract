@@ -332,8 +332,8 @@ contract NFTStaking is
 
         uint256 currentTime = block.timestamp;
         uint8 gpuCount = 1;
-        if (statedMachinesMap[machineId]){
-            stakedMachineIds.push(machineId);
+        if (!statedMachinesMap[machineId]){
+//            stakedMachineIds.push(machineId);
             statedMachinesMap[machineId] = true;
             totalGpuCount += gpuCount;
         }
@@ -907,34 +907,7 @@ contract NFTStaking is
     function version() external pure returns (uint256) {
         return 1;
     }
-
-
-    function tmp() external onlyOwner  {
-        uint256 totalStaked = 0;
-        for(uint256 i = 0; i < stakedMachineIds.length; i++){
-            if (statedMachinesMap[stakedMachineIds[i]]){
-                totalStaked += 1;
-                statedMachinesMap[stakedMachineIds[i]] = true;
-            }
-        }
-        string[] memory staked = new string[](totalStakingGpuCount);
-        uint256 j = 0;
-        for(uint256 i = 0; i < stakedMachineIds.length; i++){
-            if (statedMachinesMap[stakedMachineIds[i]]){
-                staked[j] = stakedMachineIds[i];
-                j++;
-            }
-        }
-
-        stakedMachineIds = new string[](0);
-        for(uint256 i = 0; i < staked.length; i++){
-            stakedMachineIds.push(staked[i]);
-        }
-
-        totalGpuCount = stakedMachineIds.length;
-        totalStakingGpuCount = machineIds.length;
-    }
-
+    
     function setGpuTypes(string[] memory _gpuTypes) external onlyOwner {
         for (uint256 i = 0; i < _gpuTypes.length; i++){
             if (gpuTypeSet[_gpuTypes[i]] == false){

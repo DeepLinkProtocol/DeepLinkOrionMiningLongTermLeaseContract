@@ -6,16 +6,16 @@ schema:
 dataSources:
   - kind: ethereum
     name: NFTStaking
-#    network: deepbrainchain-mainnet
-    network: deepbrainchain-testnet
+    network: deepbrainchain-mainnet
+#    network: deepbrainchain-testnet
     source:
-      address: "0x7FDC6ed8387f3184De77E0cF6D6f3B361F906C21"
-#      address: "0x3c059dbe0f42d65acd763c3c3da8b5a1b12bb74f"
+#      address: "0x7FDC6ed8387f3184De77E0cF6D6f3B361F906C21"
+      address: "0x3c059dbe0f42d65acd763c3c3da8b5a1b12bb74f"
 
 
       abi: NFTStaking
-#      startBlock: 1265285
-      startBlock: 1961616
+      startBlock: 1265285
+#      startBlock: 1961616
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
