@@ -80,6 +80,8 @@ contract NFTStaking is
     mapping(address => string[]) public holder2MachineIds;
     mapping(string => ApprovedReportInfo[]) private pendingSlashedMachineId2Renter;
     mapping(string => StakeInfo) public machineId2StakeInfos;
+    mapping(string => bool) public gpuTypeSet;
+    string[] public gpuTypes;
 
     event Staked(
         address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType, uint256 rentEndTime
@@ -367,6 +369,12 @@ contract NFTStaking is
         if (rewardStart()){
             rentEntTime = Math.min(rentEntTime, rewardStartAtTimestamp + REWARD_DURATION);
         }
+        bool found = gpuTypeSet[gpuType];
+        if (!found){
+            gpuTypes.push(gpuType);
+            gpuTypeSet[gpuType] = true;
+        }
+
         emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType, rentEntTime);
     }
 
@@ -886,6 +894,15 @@ contract NFTStaking is
         uint256 endEndAtBlockNumber = precompileContract.getOwnerRentEndAt(machineId, stakeInfo.rentId);
         uint256 endEndAtTimestamp = (endEndAtBlockNumber - block.number) * SECONDS_PER_BLOCK + block.timestamp;
         return getRewardEndAtTimestamp(endEndAtTimestamp);
+    }
+
+    function setGpuTypes(string[] memory _gpuTypes) external onlyOwner {
+        for (uint256 i = 0; i < _gpuTypes.length; i++){
+            if (!gpuTypeSet[_gpuTypes[i]]){
+                gpuTypeSet[_gpuTypes[i]] = true;
+                gpuTypes.push(_gpuTypes[i]);
+            }
+        }
     }
 
     function version() external pure returns (uint256) {
