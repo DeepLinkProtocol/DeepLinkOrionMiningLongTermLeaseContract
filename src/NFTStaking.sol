@@ -83,6 +83,8 @@ contract NFTStaking is
     mapping(string => bool) private statedMachinesMap;
     string[] public stakedMachineIds;
 
+    string[] public gpuTypes;
+    mapping(string => bool) public  gpuTypeSet;
 
     event Staked(
         address indexed stakeholder, string machineId, uint256 originCalcPoint, uint256 calcPoint, string gpuType, uint256 rentEndTime
@@ -359,6 +361,11 @@ contract NFTStaking is
             rentId: rentId
         });
 
+        bool found = gpuTypeSet[gpuType];
+        if (!found){
+            gpuTypes.push(gpuType);
+            gpuTypeSet[gpuType] = true;
+        }
         _joinStaking(machineId, calcPoint, 0);
         if (machineId2LockedRewardDetail[machineId].lockTime == 0) {
             machineId2LockedRewardDetail[machineId] = LockedRewardDetail({
@@ -926,6 +933,16 @@ contract NFTStaking is
 
         totalGpuCount = stakedMachineIds.length;
         totalStakingGpuCount = machineIds.length;
+    }
+
+    function setGpuTypes(string[] memory _gpuTypes) external onlyOwner {
+        for (uint256 i = 0; i < _gpuTypes.length; i++){
+            if (gpuTypeSet[_gpuTypes[i]] == false){
+                gpuTypeSet[_gpuTypes[i]] = true;
+                string memory gpuType = _gpuTypes[i];
+                gpuTypes.push(gpuType);
+            }
+        }
     }
 
     function renewRentMachine(string memory machineId, uint256 rentFee) external onlyRentAddress {
