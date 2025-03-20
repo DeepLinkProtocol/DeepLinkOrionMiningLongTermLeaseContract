@@ -68,3 +68,10 @@
         gpuType: String! # string gpu类型
     }
 ```
+
+```graphql
+    type GpuTypeValue @entity {
+      id: Bytes!
+      value: String!
+    }
+```
