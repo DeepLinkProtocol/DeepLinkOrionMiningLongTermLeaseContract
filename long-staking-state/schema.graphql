@@ -54,3 +54,8 @@ type MachineInfo @entity {
   gpuType: String!
 }
 
+
+type GpuTypeValue @entity {
+  id: Bytes!
+  value: String!
+}

@@ -17,7 +17,7 @@ import {
 import {
   StateSummary,
   StakeHolder,
-  MachineInfo
+  MachineInfo, GpuTypeValue
 
 } from "../generated/schema"
 
@@ -255,6 +255,12 @@ export function handleStaked(event: StakedEvent): void {
 
   if (isNewMachine){
     stakeholder.totalGPUCount = stakeholder.totalGPUCount.plus(BigInt.fromI32(1))
+    let gpuTypeValue = GpuTypeValue.load(Bytes.fromUTF8(event.params.gpuType.toString()))
+    if (gpuTypeValue == null){
+      gpuTypeValue = new GpuTypeValue(Bytes.fromUTF8(event.params.gpuType))
+      gpuTypeValue.value = event.params.gpuType
+      gpuTypeValue.save()
+    }
   }
   stakeholder.totalStakingGPUCount = stakeholder.totalStakingGPUCount.plus(BigInt.fromI32(1))
   stakeholder.totalCalcPoint = stakeholder.totalCalcPoint.plus(machineInfo.totalCalcPoint)
