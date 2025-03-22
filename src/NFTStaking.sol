@@ -907,7 +907,7 @@ contract NFTStaking is
     function version() external pure returns (uint256) {
         return 1;
     }
-    
+
     function setGpuTypes(string[] memory _gpuTypes) external onlyOwner {
         for (uint256 i = 0; i < _gpuTypes.length; i++){
             if (gpuTypeSet[_gpuTypes[i]] == false){
