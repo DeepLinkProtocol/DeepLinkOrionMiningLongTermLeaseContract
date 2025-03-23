@@ -1,6 +1,6 @@
 ## Development
 
-## 主网url：http://8.214.55.62:8032/subgraphs/name/long-staking-state-mainnet 
+## 主网url：https://dbcswap.io/subgraph/name/long-staking-state/graphql
 ## 测试网url：http://8.214.55.62:8022/subgraphs/name/long-staking-state
 
 ## 查询示例：http://8.214.55.62:8022/subgraphs/name/long-staking-state/graphql?query=%7B%0A++stateSummaries%28first%3A+5%29+%7B%0A++++id%0A++++totalGPUCount%0A++++totalCalcPointPoolCount%0A++++totalRentedGPUCount%0A++++totalBurnedRentFee%0A++++totalReservedAmount%0A++++totalStakingGPUCount%0A++%0A++%7D%0A++stakeHolders%28first%3A+5%29+%7B%0A++++id%0A++++holder%0A++++totalCalcPoint%0A++++fullTotalCalcPoint%0A++++totalGPUCount%0A++++totalReservedAmount%0A++++machineInfos%7B%0A++++++id%0A++++++holder%0A++++++totalGPUCount%0A++++++stakeEndTimestamp%0A++++++totalCalcPoint%0A++++++fullTotalCalcPoint%0A++++++isStaking%0A++++++online%0A++++++registered%0A++++++%0A++++%7D%0A++%7D%0A++machineInfos+%28first%3A10%2Cskip%3A0%2Cwhere%3A%7B%0A++++%23+gpuType%3A+%22NVIDIA+GeForce+RTX+4060%22%0A++++++++%23+isStaking%3A+true%0A%0A++++%23+isRented%3A+false%0A++++%23+online%3A+true%0A++++%23+registered%3A+true%0A++%7D%29%7B%0A++++id%0A++++holder%0A++++totalGPUCount%0A++++stakeEndTimestamp%0A++++totalCalcPoint%0A++++fullTotalCalcPoint%0A++++nextCanRentTimestamp%0A++++isRented%0A++++isStaking%0A++++online%0A++++registered%0A++++gpuType%0A++++totalReservedAmount%0A++++stakeEndTime%0A++++machineId%0A++%7D%0A%7D
