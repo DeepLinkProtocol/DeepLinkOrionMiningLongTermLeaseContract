@@ -255,12 +255,15 @@ export function handleStaked(event: StakedEvent): void {
 
   if (isNewMachine){
     stakeholder.totalGPUCount = stakeholder.totalGPUCount.plus(BigInt.fromI32(1))
-    let gpuTypeValue = GpuTypeValue.load(Bytes.fromUTF8(event.params.gpuType.toString()))
-    if (gpuTypeValue == null){
+    let gpuTypeValue = GpuTypeValue.load(Bytes.fromUTF8(event.params.gpuType))
+    if (gpuTypeValue == null) {
       gpuTypeValue = new GpuTypeValue(Bytes.fromUTF8(event.params.gpuType))
       gpuTypeValue.value = event.params.gpuType
-      gpuTypeValue.save()
+      gpuTypeValue.count = BigInt.fromI32(1)
+    }else{
+      gpuTypeValue.count = gpuTypeValue.count.plus(BigInt.fromI32(1))
     }
+    gpuTypeValue.save()
   }
   stakeholder.totalStakingGPUCount = stakeholder.totalStakingGPUCount.plus(BigInt.fromI32(1))
   stakeholder.totalCalcPoint = stakeholder.totalCalcPoint.plus(machineInfo.totalCalcPoint)
@@ -333,6 +336,15 @@ export function handleUnstaked(event: UnstakedEvent): void {
   machineInfo.online = false
   machineInfo.registered = false
   machineInfo.save()
+
+  let gpuTypeValue = GpuTypeValue.load(Bytes.fromUTF8(machineInfo.gpuType))
+  if (gpuTypeValue == null) {
+    return
+  }
+  if (gpuTypeValue.count.toU32() >=1){
+    gpuTypeValue.count = gpuTypeValue.count.minus(BigInt.fromI32(1))
+    gpuTypeValue.save()
+  }
 }
 
 export function handleAddStakeHours(event: AddedStakeHoursEvent): void {
