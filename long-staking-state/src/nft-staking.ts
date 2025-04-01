@@ -29,6 +29,12 @@ export function handleClaimed(event: ClaimedEvent): void {
     return
   }
 
+  machineInfo.totalClaimedRewardAmount =
+      machineInfo.totalClaimedRewardAmount.plus(event.params.totalRewardAmount);
+  machineInfo.totalReleasedRewardAmount = machineInfo.totalReleasedRewardAmount
+      .plus(event.params.moveToUserWalletAmount)
+      .plus(event.params.moveToReservedAmount);
+
   let stakeholder = StakeHolder.load(Bytes.fromHexString(machineInfo.holder.toHexString()))
   if (stakeholder == null) {
     return
@@ -218,6 +224,8 @@ export function handleStaked(event: StakedEvent): void {
     machineInfo.burnedRentFee = BigInt.fromI32(0)
     machineInfo.isRented = false
     machineInfo.gpuType = event.params.gpuType
+    machineInfo.totalClaimedRewardAmount = BigInt.fromI32(0)
+    machineInfo.totalReleasedRewardAmount = BigInt.fromI32(0)
   }
 
   machineInfo.totalGPUCount = BigInt.fromI32(1)
@@ -225,7 +233,7 @@ export function handleStaked(event: StakedEvent): void {
   machineInfo.totalCalcPointWithNFT = event.params.calcPoint
   machineInfo.fullTotalCalcPoint = event.params.calcPoint
   machineInfo.stakeEndTimestamp = event.block.timestamp.plus(event.params.rentEndTime)
-  machineInfo.nextCanRentTimestamp = event.block.timestamp.plus(event.params.rentEndTime)
+  machineInfo.nextCanRentTimestamp = event.block.timestamp
   machineInfo.stakeEndTime = new Date(machineInfo.stakeEndTimestamp.toU64() * 1000).toISOString();
   machineInfo.nextCanRentTime = new Date(machineInfo.nextCanRentTimestamp.toU64() * 1000).toISOString();
   machineInfo.isStaking = true

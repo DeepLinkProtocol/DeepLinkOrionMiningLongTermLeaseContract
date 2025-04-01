@@ -135,6 +135,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event MachineUnregister(string machineId, uint256 calcPoint);
     event PaidSlash(string machineId);
 
+
     error NotApproveAdmin();
     error ZeroCalcPoint();
     error CallerNotStakingContract();

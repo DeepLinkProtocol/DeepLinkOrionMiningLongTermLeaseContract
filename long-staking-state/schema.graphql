@@ -47,6 +47,8 @@ type MachineInfo @entity {
   stakeEndTime: String! # string
   nextCanRentTimestamp: BigInt! # uint256
   nextCanRentTime: String! # string
+  totalClaimedRewardAmount: BigInt! # uint256
+  totalReleasedRewardAmount: BigInt! # uint256
   isRented : Boolean!
   isStaking: Boolean!
   online: Boolean!
