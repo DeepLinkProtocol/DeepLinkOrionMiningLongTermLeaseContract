@@ -348,7 +348,6 @@ contract NFTStaking is
             rewardStartAtBlockNumber = block.number;
             rewardPerShareAtRewardStart = rewardsPerCalcPoint.accumulatedPerShare;
         }
-        //        machineId2StakeUnitRewards[machineId].lastAccumulatedPerShare = rewardsPerCalcPoint.accumulatedPerShare;
 
         nftToken.safeBatchTransferFrom(stakeholder, address(this), nftTokenIds, nftTokenIdBalances, "transfer");
         machineId2StakeInfos[machineId] = StakeInfo({
