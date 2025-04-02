@@ -952,7 +952,11 @@ contract NFTStaking is
         RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
         uint256 v = machineRewards.lastAccumulatedPerShare;
         if (machineRewards.lastAccumulatedPerShare == 0) {
-            v = rewardsPerCalcPoint.accumulatedPerShare;
+            if (stakeInfo.startAtTimestamp < rewardStartAtTimestamp && stakeInfo.claimedAmount == 0){
+                v = rewardPerShareAtRewardStart;
+            }else{
+                v = rewardsPerCalcPoint.accumulatedPerShare;
+            }
         }
 
         RewardCalculatorLib.RewardsPerShare memory currentRewardPerCalcPoint = _getUpdatedRewardPerCalcPoint();
