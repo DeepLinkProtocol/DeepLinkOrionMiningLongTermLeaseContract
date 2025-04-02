@@ -349,6 +349,11 @@ contract NFTStaking is
         }
         totalStakingGpuCount += gpuCount;
 
+        machineId2StakeUnitRewards[machineId].lastAccumulatedPerShare = rewardsPerCalcPoint.accumulatedPerShare;
+        if (rewardsPerCalcPoint.accumulatedPerShare < rewardPerShareAtRewardStart){
+            rewardsPerCalcPoint.accumulatedPerShare = rewardPerShareAtRewardStart;
+        }
+
         if (totalGpuCount >= rewardStartGPUThreshold && rewardStartAtTimestamp == 0) {
             rewardStartAtTimestamp = currentTime;
             rewardStartAtBlockNumber = block.number;
@@ -1094,5 +1099,9 @@ contract NFTStaking is
         );
 
         return rewardAmount;
+    }
+
+    function getHolderMachineIds(address holder) external view returns (string[] memory)  {
+        return holder2MachineIds[holder];
     }
 }
