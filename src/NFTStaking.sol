@@ -348,12 +348,6 @@ contract NFTStaking is
             totalGpuCount += gpuCount;
         }
         totalStakingGpuCount += gpuCount;
-
-        machineId2StakeUnitRewards[machineId].lastAccumulatedPerShare = rewardsPerCalcPoint.accumulatedPerShare;
-        if (rewardsPerCalcPoint.accumulatedPerShare < rewardPerShareAtRewardStart){
-            rewardsPerCalcPoint.accumulatedPerShare = rewardPerShareAtRewardStart;
-        }
-
         if (totalGpuCount >= rewardStartGPUThreshold && rewardStartAtTimestamp == 0) {
             rewardStartAtTimestamp = currentTime;
             rewardStartAtBlockNumber = block.number;
