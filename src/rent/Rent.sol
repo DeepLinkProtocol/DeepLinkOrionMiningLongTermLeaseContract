@@ -135,7 +135,6 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     event MachineUnregister(string machineId, uint256 calcPoint);
     event PaidSlash(string machineId);
 
-
     error NotApproveAdmin();
     error ZeroCalcPoint();
     error CallerNotStakingContract();
@@ -293,10 +292,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // 0.005U
         uint256 dlcUSDPrice = 5000;
         // todo
-//        uint256 dlcUSDPrice = precompileContract.getDLCPrice();
-//        if (dlcUSDPrice == 0) {
-//            dlcUSDPrice = 5000;
-//        }
+        //        uint256 dlcUSDPrice = precompileContract.getDLCPrice();
+        //        if (dlcUSDPrice == 0) {
+        //            dlcUSDPrice = 5000;
+        //        }
         uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact * ONE_CALC_POINT_USD_VALUE_PER_MONTH / 30 / 24
             / 60 / 60 / totalFactor;
         return 1e18 * rentFeeUSD / dlcUSDPrice;
@@ -364,7 +363,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         totalBurnedAmount += rentFeeInFact;
 
         // notify staking contract renting machine action happened
-        stakingContract.rentMachine(machineId,rentFeeInFact);
+        stakingContract.rentMachine(machineId, rentFeeInFact);
 
         stakingContract.setBurnedRentFee(machineHolder, machineId, rentFeeInFact);
         stakingContract.addRentedGPUCount(machineHolder, machineId);

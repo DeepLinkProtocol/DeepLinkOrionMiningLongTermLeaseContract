@@ -51,7 +51,7 @@ library RewardCalculatorLib {
     ) internal pure returns (UserRewards memory) {
         if (userRewardsIn.lastAccumulatedPerShare == rewardsPerToken_.lastUpdated) return userRewardsIn;
 
-        if (userRewardsIn.lastAccumulatedPerShare == 0){
+        if (userRewardsIn.lastAccumulatedPerShare == 0) {
             userRewardsIn.lastAccumulatedPerShare = rewardPerShareAtRewardStart;
         }
 
@@ -60,7 +60,7 @@ library RewardCalculatorLib {
             userShares, userRewardsIn.lastAccumulatedPerShare, rewardsPerToken_.accumulatedPerShare
         ) + userRewardsIn.accumulated;
         userRewardsOut.lastAccumulatedPerShare = rewardsPerToken_.accumulatedPerShare;
-        if (userRewardsOut.lastAccumulatedPerShare == 0){
+        if (userRewardsOut.lastAccumulatedPerShare == 0) {
             userRewardsOut.lastAccumulatedPerShare = rewardPerShareAtRewardStart;
         }
         return userRewardsOut;
