@@ -398,7 +398,6 @@ contract NFTStaking is
                 claimedAmount: 0
             });
         }
-        NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
         uint256 rentEntTime = (rentEndAt - block.number) * SECONDS_PER_BLOCK;
         if (rewardStart()) {
