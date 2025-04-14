@@ -196,7 +196,7 @@ contract StakingTest is Test {
 
         passDays(1);
         (uint256 release, uint256 locked) = nftStaking.calculateReleaseReward(machineId2);
-        assertEq(release, ((locked + release) * 3 days / nftStaking.LOCK_PERIOD()) , "111");
+        assertEq(release, ((locked + release) * 3 days / nftStaking.LOCK_PERIOD()), "111");
 
         uint256[] memory tokenIds3 = new uint256[](1);
         tokenIds3[0] = 10;
@@ -219,7 +219,204 @@ contract StakingTest is Test {
         assertEq(totalReservedAmount, 10 * 1e18);
     }
 
-    function testUnStake() public {
+    // function testClaimTwiceInSuccession() public {
+    //     // Create a stake
+    //     address stakeHolder = owner;
+    //     string memory machineId = "machineIdForDoubleClaim";
+    //     stakeByOwner(machineId, 0, 480, stakeHolder);
+
+    //     // Wait for a day to accumulate rewards
+    //     passDays(1);
+
+    //     // Get reward information before the first claim
+    //     uint256 rewardBeforeFirstClaim = nftStaking.getReward(machineId);
+    //     (, uint256 rewardAmountCanClaimBeforeFirst, uint256 lockedRewardAmountBeforeFirst,) =
+    //         nftStaking.getRewardInfo(machineId);
+
+    //     // Confirm there are claimable rewards
+    //     assertGt(rewardBeforeFirstClaim, 0, "should have reward");
+    //     assertGt(rewardAmountCanClaimBeforeFirst, 0, "should have reward");
+    //     assertGt(lockedRewardAmountBeforeFirst, 0, "should have reward");
+
+    //     // Record balance before the first claim
+    //     uint256 balanceBeforeFirstClaim = rewardToken.balanceOf(stakeHolder);
+
+    //     // First claim of rewards
+    //     vm.prank(stakeHolder);
+    //     nftStaking.claim(machineId);
+
+    //     // Record balance after the first claim
+    //     uint256 balanceAfterFirstClaim = rewardToken.balanceOf(stakeHolder);
+
+    //     // Verify the first claim was successful
+    //     assertGt(balanceAfterFirstClaim, balanceBeforeFirstClaim, "first claim should increase balance");
+
+    //     // Get reward information after the first claim
+    //     uint256 rewardAfterFirstClaim = nftStaking.getReward(machineId);
+    //     (, uint256 rewardAmountCanClaimAfterFirst,,) = nftStaking.getRewardInfo(machineId);
+
+    //     // Verify claimable rewards are zero after the first claim
+    //     assertEq(rewardAfterFirstClaim, 0, "after first claim, should have no reward");
+    //     assertEq(rewardAmountCanClaimAfterFirst, 0, "after first claim, should have no reward");
+
+    //     // Record balance before the second claim
+    //     uint256 balanceBeforeSecondClaim = rewardToken.balanceOf(stakeHolder);
+
+    //     // Immediately perform the second claim
+    //     vm.prank(stakeHolder);
+    //     nftStaking.claim(machineId);
+
+    //     // Record balance after the second claim
+    //     uint256 balanceAfterSecondClaim = rewardToken.balanceOf(stakeHolder);
+
+    //     // Verify the second claim did not increase the balance
+    //     assertEq(balanceAfterSecondClaim, balanceBeforeSecondClaim, "second claim should not increase balance");
+
+    //     // Get reward information after the second claim
+    //     uint256 rewardAfterSecondClaim = nftStaking.getReward(machineId);
+
+    //     // Verify claimable rewards are still zero after the second claim
+    //     assertEq(rewardAfterSecondClaim, 0, "second claim, should have no reward");
+    // }
+
+    function testAddNFTsToStake() public {
+        // Create initial stake
+        address stakeHolder = owner;
+        string memory machineId = "machineIdForAddNFTs";
+        stakeByOwner(machineId, 0, 480, stakeHolder);
+
+        // Get initial stake info
+        NFTStaking.StakeInfo memory initialStakeInfo = nftStaking.getMachineStakeInfo(machineId);
+        uint256 initialNFTCount = initialStakeInfo.nftCount;
+        uint256 initialCalcPoint = initialStakeInfo.calcPoint;
+
+        // Prepare new NFTs
+        uint256[] memory additionalNftTokenIds = new uint256[](1);
+        uint256[] memory additionalNftTokenIdBalances = new uint256[](1);
+        additionalNftTokenIds[0] = 2; // Use different NFT ID
+        additionalNftTokenIdBalances[0] = 1;
+
+        // Provide new NFT to user
+        dealERC1155(address(nftToken), stakeHolder, 2, 1, false);
+        assertEq(nftToken.balanceOf(stakeHolder, 2), 1, "owner should have the new NFT");
+
+        // Approve NFT for staking contract
+        vm.startPrank(stakeHolder);
+        nftToken.setApprovalForAll(address(nftStaking), true);
+
+        // Wait some time to accumulate rewards
+        passDays(1);
+
+        // Get reward info before adding NFTs
+        uint256 rewardBeforeAdd = nftStaking.getReward(machineId);
+        assertGt(rewardBeforeAdd, 0, "should have accumulated rewards before adding NFTs");
+
+        // Record balance before adding NFTs
+        uint256 balanceBeforeAdd = rewardToken.balanceOf(stakeHolder);
+
+        // Add NFTs to stake
+        nftStaking.addNFTsToStake(machineId, additionalNftTokenIds, additionalNftTokenIdBalances);
+        vm.stopPrank();
+
+        // Verify NFT transfer
+        assertEq(nftToken.balanceOf(stakeHolder, 2), 0, "NFT should be transferred to staking contract");
+
+        // Get updated stake info
+        NFTStaking.StakeInfo memory updatedStakeInfo = nftStaking.getMachineStakeInfo(machineId);
+
+        // Verify NFT count increase
+        assertEq(updatedStakeInfo.nftCount, initialNFTCount + 1, "NFT count should increase by 1");
+
+        // Verify calc point increase proportionally
+        uint256 expectedNewCalcPoint = initialCalcPoint / initialNFTCount * updatedStakeInfo.nftCount;
+        assertEq(updatedStakeInfo.calcPoint, expectedNewCalcPoint, "calcPoint should be updated proportionally");
+
+        // Verify NFT arrays are updated
+        assertEq(
+            updatedStakeInfo.nftTokenIds.length,
+            initialStakeInfo.nftTokenIds.length + 1,
+            "NFT token IDs array should be extended"
+        );
+        assertEq(
+            updatedStakeInfo.tokenIdBalances.length,
+            initialStakeInfo.tokenIdBalances.length + 1,
+            "NFT token balances array should be extended"
+        );
+
+        // Verify previous rewards are claimed (due to _claim being called)
+        uint256 balanceAfterAdd = rewardToken.balanceOf(stakeHolder);
+        assertGt(balanceAfterAdd, balanceBeforeAdd, "rewards should be claimed when adding NFTs");
+
+        // Verify reward counter is reset
+        uint256 rewardAfterAdd = nftStaking.getReward(machineId);
+        assertEq(rewardAfterAdd, 0, "reward counter should be reset after adding NFTs");
+
+        // Wait some time to verify new calc point takes effect
+        passDays(1);
+
+        // Get new rewards
+        uint256 newReward = nftStaking.getReward(machineId);
+        assertGt(newReward, 0, "should accumulate new rewards with updated calcPoint");
+
+        // Verify new reward matches calc point ratio
+        uint256 totalCalcPoint = nftStaking.totalCalcPoint();
+        uint256 dailyReward = nftStaking.getDailyRewardAmount();
+        uint256 expectedReward = (dailyReward * updatedStakeInfo.calcPoint) / totalCalcPoint;
+        
+        // Allow 1% error margin
+        assertApproxEqRel(
+            newReward,
+            expectedReward,
+            0.01e18,
+            "new reward should match the expected reward based on calcPoint ratio"
+        );
+    }
+
+    function testUnstakeWithAddedNFTs() public {
+        // Initial stake setup
+        address stakeHolder = owner;
+        string memory machineId = "machineIdForUnstakeTest";
+        stakeByOwner(machineId, 100000 ether, 72, stakeHolder);
+
+        // Record initial NFT balance
+        uint256 nft1BalanceBefore = nftToken.balanceOf(stakeHolder, 1);
+
+        // Prepare additional NFT
+        uint256[] memory newNftTokenIds = new uint256[](1);
+        uint256[] memory newNftTokenBalances = new uint256[](1);
+        newNftTokenIds[0] = 2;
+        newNftTokenBalances[0] = 1;
+        
+        // Provide and approve new NFT
+        dealERC1155(address(nftToken), stakeHolder, 2, 1, false);
+        vm.startPrank(stakeHolder);
+        nftToken.setApprovalForAll(address(nftStaking), true);
+        
+        // Add NFT to stake
+        nftStaking.addNFTsToStake(machineId, newNftTokenIds, newNftTokenBalances);
+        vm.stopPrank();
+
+        // Record balance of added NFT
+        uint256 nft2BalanceBefore = nftToken.balanceOf(stakeHolder, 2);
+
+        // Wait for staking period to end
+        passHours(72);
+
+        // Execute unstake
+        vm.prank(stakeHolder);
+        nftStaking.unStake(machineId);
+
+        // Verify all NFTs are returned to stake holder
+        assertEq(nftToken.balanceOf(stakeHolder, 1), nft1BalanceBefore + 1, "First NFT should be returned");
+        assertEq(nftToken.balanceOf(stakeHolder, 2), nft2BalanceBefore + 1, "Added NFT should be returned");
+
+        // Verify stake info is cleared
+        NFTStaking.StakeInfo memory stakeInfo = nftStaking.getMachineStakeInfo(machineId);
+        assertEq(stakeInfo.nftCount, 0, "Stake info should be cleared");
+        assertEq(stakeInfo.calcPoint, 0, "Calc point should be cleared");
+    }
+
+    function testUnstake() public {
         address stakeHolder = owner;
         string memory machineId = "machineId";
         stakeByOwner(machineId, 100000, 480, stakeHolder);
@@ -507,7 +704,7 @@ contract StakingTest is Test {
         // uint256 leftLocked = total-claimed;
 
         // Check rewards after lock period
-        (uint256 newTotalReward, uint256 newCanClaimNow, uint256 newLockedAmount,) = nftStaking.getRewardInfo(machineId);
+        (, uint256 newCanClaimNow, uint256 newLockedAmount,) = nftStaking.getRewardInfo(machineId);
 
         // All previously locked rewards should now be claimable
         assertGt(newLockedAmount, 0, "Should have new locked rewards after lock period");
@@ -544,4 +741,84 @@ contract StakingTest is Test {
 
         assertEq(totalFinal, claimedFinal);
     }
+
+    function testAddNFTsToStakeRewardIncreaseWithTwoMachines() public {
+        // Setup two machines with different stakeholders
+        address stakeHolder = owner;
+        string memory machineIdA = "machineIdForRewardA";
+        string memory machineIdB = "machineIdForRewardB";
+        
+        // Stake both machines
+        stakeByOwner(machineIdA, 0, 480, stakeHolder);
+        stakeByOwner(machineIdB, 0, 480, stakeHolder2);
+        
+        // Wait for rewards to accumulate
+        passDays(1);
+        
+        // Record initial rewards for machine A
+        uint256 initialRewardA = nftStaking.getReward(machineIdA);
+        assertGt(initialRewardA, 0, "Machine A should have initial rewards");
+        
+        // Record initial rewards for machine B
+        uint256 initialRewardB = nftStaking.getReward(machineIdB);
+        assertGt(initialRewardB, 0, "Machine B should have initial rewards");
+        
+        // Claim rewards for machine B before adding NFT to machine A
+        vm.prank(stakeHolder2);
+        nftStaking.claim(machineIdB);
+        
+        // Print reward increase
+        // Prepare additional NFT for machine A
+        uint256[] memory newNftTokenIds = new uint256[](1);
+        uint256[] memory newNftTokenBalances = new uint256[](1);
+        newNftTokenIds[0] = 2;
+        newNftTokenBalances[0] = 1;
+        
+        // Provide and approve new NFT
+        dealERC1155(address(nftToken), stakeHolder, 2, 1, false);
+        vm.startPrank(stakeHolder);
+        nftToken.setApprovalForAll(address(nftStaking), true);
+        
+        // Add NFT to machine A
+        nftStaking.addNFTsToStake(machineIdA, newNftTokenIds, newNftTokenBalances);
+        vm.stopPrank();
+        
+        // Wait for new rewards to accumulate
+        passDays(1);
+        
+        // Get new rewards
+        uint256 newRewardA = nftStaking.getReward(machineIdA);
+        uint256 newRewardB = nftStaking.getReward(machineIdB);
+        
+        // 打印奖励增加情况
+        console.log("Machine A initial reward:", initialRewardA);
+        console.log("Machine A new reward:", newRewardA);
+        console.log("Machine A reward increase:", newRewardA - initialRewardA);
+        console.log("Machine A reward increase percentage:", (newRewardA * 100) / initialRewardA, "%");
+        
+        console.log("Machine B initial reward:", initialRewardB);
+        console.log("Machine B new reward:", newRewardB);
+        console.log("Machine B reward decrease:", initialRewardB - newRewardB);
+        console.log("Machine B reward decrease percentage:", (newRewardB * 100) / initialRewardB, "%");
+        
+        // Verify machine A's reward increased
+        assertGt(newRewardA, initialRewardA, "Machine A's reward should increase after adding NFT");
+        
+        // Verify machine B's reward decreased due to increased total stake
+        assertLt(newRewardB, initialRewardB, "Machine B's reward should decrease due to increased total stake");
+        
+        // Calculate and verify the reward ratio
+        uint256 totalCalcPoint = nftStaking.totalCalcPoint();
+        uint256 machineACalcPoint = nftStaking.getMachineStakeInfo(machineIdA).calcPoint;
+        uint256 dailyReward = nftStaking.getDailyRewardAmount();
+        
+        uint256 expectedRewardA = (dailyReward * machineACalcPoint) / totalCalcPoint;
+        assertApproxEqRel(
+            newRewardA,
+            expectedRewardA,
+            0.01e18,
+            "Machine A's reward should match expected calculation"
+        );
+    }
+
 }

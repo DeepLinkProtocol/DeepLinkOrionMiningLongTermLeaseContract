@@ -121,6 +121,13 @@ contract NFTStaking is
     event MoveToReserveAmount(string machineId, address holder, uint256 amount);
     event RenewRent(string machineId, address holder, uint256 rentFee);
     event SetRewardReceiver(string machineId, address indexed stakeholder, address indexed receiver);
+    event AddedNFTsToStake(
+        address indexed stakeholder,
+        string machineId,
+        uint256[] nftTokenIds,
+        uint256[] nftTokenIdBalances,
+        uint256 newCalcPoint
+    );
     // error
 
     error CallerNotRentContract();
@@ -398,6 +405,61 @@ contract NFTStaking is
             rentEntTime = Math.min(rentEntTime, rewardStartAtTimestamp + REWARD_DURATION);
         }
         emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType, rentEntTime);
+    }
+
+    function addNFTsToStake(
+        string calldata machineId,
+        uint256[] calldata nftTokenIds,
+        uint256[] calldata nftTokenIdBalances
+    ) external nonReentrant {
+        require(
+            nftTokenIds.length == nftTokenIdBalances.length,
+            InvalidNFTLength(nftTokenIds.length, nftTokenIdBalances.length)
+        );
+        require(nftTokenIds.length > 0, ZeroNFTTokenIds());
+
+        StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
+        require(stakeInfo.holder == msg.sender, NotStakeHolder(machineId, msg.sender));
+        require(isStaking(machineId), MachineNotStaked(machineId));
+
+        uint256 additionalNFTCount = getNFTCount(nftTokenIdBalances);
+
+        require(stakeInfo.nftCount + additionalNFTCount <= MAX_NFTS_PER_MACHINE, NFTCountGreaterThan20());
+
+        nftToken.safeBatchTransferFrom(msg.sender, address(this), nftTokenIds, nftTokenIdBalances, "transfer");
+
+        uint256 baseCalcPoint = stakeInfo.calcPoint / stakeInfo.nftCount;
+        uint256 newNFTCount = stakeInfo.nftCount + additionalNFTCount;
+        uint256 newCalcPoint = baseCalcPoint * newNFTCount;
+
+        // merge nfts
+        uint256[] memory newNftTokenIds = new uint256[](stakeInfo.nftTokenIds.length + nftTokenIds.length);
+        uint256[] memory newNftTokenIdBalances =
+            new uint256[](stakeInfo.tokenIdBalances.length + nftTokenIdBalances.length);
+
+        for (uint256 i = 0; i < stakeInfo.nftTokenIds.length; i++) {
+            newNftTokenIds[i] = stakeInfo.nftTokenIds[i];
+            newNftTokenIdBalances[i] = stakeInfo.tokenIdBalances[i];
+        }
+
+        for (uint256 i = 0; i < nftTokenIds.length; i++) {
+            newNftTokenIds[stakeInfo.nftTokenIds.length + i] = nftTokenIds[i];
+            newNftTokenIdBalances[stakeInfo.tokenIdBalances.length + i] = nftTokenIdBalances[i];
+        }
+
+        // claim rewards first
+        _claim(machineId);
+
+        // update staking info
+        stakeInfo.nftTokenIds = newNftTokenIds;
+        stakeInfo.tokenIdBalances = newNftTokenIdBalances;
+        stakeInfo.nftCount = newNFTCount;
+
+        // update calcPoint
+        _joinStaking(machineId, newCalcPoint, stakeInfo.reservedAmount);
+        // NFTStakingState.addOrUpdateStakeHolder(stakeInfo.holder, machineId, newCalcPoint, stakeInfo.gpuCount, false);
+
+        emit AddedNFTsToStake(msg.sender, machineId, nftTokenIds, nftTokenIdBalances, newCalcPoint);
     }
 
     function stake1(
@@ -724,6 +786,10 @@ contract NFTStaking is
         return stakeInfo.holder;
     }
 
+    function getMachineStakeInfo(string calldata machineId) public view returns (StakeInfo memory) {
+        return machineId2StakeInfos[machineId];
+    }
+
     function isStaking(string memory machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         bool _isStaking =
@@ -1000,9 +1066,9 @@ contract NFTStaking is
         RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
         uint256 v = machineRewards.lastAccumulatedPerShare;
         if (machineRewards.lastAccumulatedPerShare == 0) {
-            if (stakeInfo.startAtTimestamp < rewardStartAtTimestamp && stakeInfo.claimedAmount == 0){
+            if (stakeInfo.startAtTimestamp < rewardStartAtTimestamp && stakeInfo.claimedAmount == 0) {
                 v = rewardPerShareAtRewardStart;
-            }else{
+            } else {
                 v = rewardsPerCalcPoint.accumulatedPerShare;
             }
         }
@@ -1093,9 +1159,5 @@ contract NFTStaking is
         );
 
         return rewardAmount;
-    }
-
-    function getHolderMachineIds(address holder) external view returns (string[] memory)  {
-        return holder2MachineIds[holder];
     }
 }
