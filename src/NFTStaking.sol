@@ -381,13 +381,48 @@ contract NFTStaking is
                 claimedAmount: 0
             });
         }
-        NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
         uint256 rentEntTime = (rentEndAt - block.number) * SECONDS_PER_BLOCK;
         if (rewardStart()) {
             rentEntTime = Math.min(rentEntTime, rewardStartAtTimestamp + REWARD_DURATION);
         }
         emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType, rentEntTime);
+    }
+
+    function canStake(address stakeholder,string memory machineId, uint256 rentId) public view returns(bool canStake, string memory reason) {
+        if (precompileContract.getMachineGPUCount(machineId) != 1){
+            return (false, "machine has more than one gpu");
+        }
+        if (!precompileContract.isMachineOwner(machineId, stakeholder)){
+            return (false, "not machine owner");
+        }
+        if (precompileContract.getMachineCalcPoint(machineId) == 0){
+            return (false, "machine calc point is zero");
+        }
+
+        if (isStaking(machineId)){
+            return (false, "machine is staking");
+        }
+
+        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
+        if (mem < 16){
+            return (false, "machine memory is less than 16G");
+        }
+        if (!ToolLib.checkString(gpuType)){
+            return (false, "machine gpu type is not match");
+        }
+
+        if (shortStakeContractAddress != address(0)) {
+            if (IShortStakeContract(shortStakeContractAddress).isStaking(machineId)){
+                return (false, "machine is staking in short term");
+            }
+        }
+
+        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
+        if ((rentEndAt - block.number) * SECONDS_PER_BLOCK < 10 days){
+            return (false, "rent time is less than 10 days");
+        }
+        return (true, "");
     }
 
     function stake1(
@@ -468,7 +503,6 @@ contract NFTStaking is
                 claimedAmount: 0
             });
         }
-        NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
         uint256 rentEntTime = (rentEndAt - block.number) * SECONDS_PER_BLOCK;
         if (rewardStart()) {
