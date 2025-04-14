@@ -18,7 +18,7 @@ contract StakingTest is Test {
     Token public rewardToken;
     DLCNode public nftToken;
 
-    address owner = address(0x01);
+    address owner = makeAddr("owner");
     address admin2 = address(0x02);
     address admin3 = address(0x03);
     address admin4 = address(0x04);
@@ -48,9 +48,9 @@ contract StakingTest is Test {
         deal(address(rewardToken), address(nftStaking), 360000000 * 1e18);
 
         nftStaking.setRewardStartAt(block.timestamp);
-        address[] memory admins = new address[](1);
+        address[] memory admins = new address[](2);
         admins[0] = owner;
-
+        admins[1] = stakeHolder2;
         nftStaking.setDLCClientWallets(admins);
         vm.stopPrank();
     }
@@ -108,7 +108,7 @@ contract StakingTest is Test {
         nftTokens[0] = 1;
         nftTokensBalance[0] = 1;
         uint256 totalCalcPointBefore = nftStaking.totalCalcPoint();
-        nftStaking.stake(owner, machineId, nftTokens, nftTokensBalance, stakeHours);
+        nftStaking.stake(_owner, machineId, nftTokens, nftTokensBalance, stakeHours);
         assertEq(nftToken.balanceOf(_owner, 1), 0, "owner erc1155 failed");
         nftStaking.addDLCToStake(machineId, reserveAmount);
         vm.stopPrank();

@@ -16,7 +16,6 @@ dbc-testnet = { key = "abc", url = "https://rpc-testnet.dbcwallet.io", chain = "
 bsc-testnet = {key = "${BSC_TESTNET_API_KEY}", url = "https://data-seed-prebsc-1-s1.binance.org:8545", chain = "97"}
 dbc-mainnet = { key = "abc", url = "https://rpc.dbcwallet.io", chain = "19880818" }
 
-
 [rpc_endpoints]
 dbc-mainnet = "https://rpc.dbcwallet.io"
 dbc-testnet = "https://rpc-testnet.dbcwallet.io"

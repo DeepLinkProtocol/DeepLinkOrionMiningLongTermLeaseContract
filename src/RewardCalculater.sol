@@ -94,19 +94,19 @@ contract RewardCalculator {
         return dailyRewardAmount;
     }
 
-    function _updateMachineRewards(
-        string memory machineId,
-        uint256 machineShares,
-        uint256 rewardDuration,
-        uint256 totalDistributedRewardAmount
-    ) internal {
-        _updateRewardPerCalcPoint(rewardDuration, totalDistributedRewardAmount);
-
-        RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
-        RewardCalculatorLib.UserRewards memory machineRewardsUpdated =
-            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint);
-        machineId2StakeUnitRewards[machineId] = machineRewardsUpdated;
-    }
+    //    function _updateMachineRewards(
+    //        string memory machineId,
+    //        uint256 machineShares,
+    //        uint256 rewardDuration,
+    //        uint256 totalDistributedRewardAmount
+    //    ) internal {
+    //        _updateRewardPerCalcPoint(rewardDuration, totalDistributedRewardAmount);
+    //
+    //        RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
+    //        RewardCalculatorLib.UserRewards memory machineRewardsUpdated =
+    //            RewardCalculatorLib.getUpdateUserRewards(machineRewards, machineShares, rewardsPerCalcPoint,rewardP);
+    //        machineId2StakeUnitRewards[machineId] = machineRewardsUpdated;
+    //    }
 
     function calculateReleaseRewardAndUpdate(string memory machineId)
         internal

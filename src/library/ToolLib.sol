@@ -72,7 +72,8 @@ library ToolLib {
         bool hasNvidia = contains(bytes(text), bytes("NVIDIA"));
 
         bool has = hasNumberGreaterThan20(text);
-
+        bool hasGeForce = contains(bytes(text), bytes("GeForce"));
+        hasNvidia = hasNvidia || hasGeForce;
         return hasNvidia && has;
     }
 }

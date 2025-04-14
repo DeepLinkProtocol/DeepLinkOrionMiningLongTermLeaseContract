@@ -28,4 +28,6 @@ interface IPrecompileContract {
         external
         view
         returns (string memory gpuType, uint256 mem);
+
+    function getDLCPrice() external view returns (uint256);
 }
