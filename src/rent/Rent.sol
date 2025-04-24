@@ -10,6 +10,7 @@ import "../interface/IRentContract.sol";
 import "../interface/IPrecompileContract.sol";
 import "forge-std/console.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "../interface/IOracle.sol";
 
 /// @custom:oz-upgrades-from OldRent
 contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
@@ -105,6 +106,8 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     mapping(address => RentGPUInfo) public stakeHolder2RentGPUInfo;
     mapping(string => uint256) public machineId2LastRentEndBlock;
     address public canUpgradeAddress;
+
+    IOracle public oracle;
 
     event RentMachine(
         address indexed machineOnwer,
@@ -290,12 +293,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         // calcPont factor : 10000 ; ONE_CALC_POINT_USD_VALUE_PER_MONTH factor: 10000
         uint256 totalFactor = FACTOR * FACTOR;
         // 0.005U
-        uint256 dlcUSDPrice = 5000;
-        // todo
-        //        uint256 dlcUSDPrice = precompileContract.getDLCPrice();
-        //        if (dlcUSDPrice == 0) {
-        //            dlcUSDPrice = 5000;
-        //        }
+        uint256 dlcUSDPrice = oracle.getTokenPriceInUSD(10, address(feeToken));
         uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact * ONE_CALC_POINT_USD_VALUE_PER_MONTH / 30 / 24
             / 60 / 60 / totalFactor;
         return 1e18 * rentFeeUSD / dlcUSDPrice;

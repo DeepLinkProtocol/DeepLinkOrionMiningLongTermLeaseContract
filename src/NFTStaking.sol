@@ -681,12 +681,12 @@ contract NFTStaking is
         return (availableRewardAmount, canClaimAmount, lockedAmount, claimedAmount);
     }
 
-    function claimAll() external nonReentrant {
-        string[] memory machineIds = holder2MachineIds[msg.sender];
-        for (uint256 i = 0; i < machineIds.length; i++) {
-            claim(machineIds[i]);
-        }
-    }
+//    function claimAll() external nonReentrant {
+//        string[] memory machineIds = holder2MachineIds[msg.sender];
+//        for (uint256 i = 0; i < machineIds.length; i++) {
+//            claim(machineIds[i]);
+//        }
+//    }
 
     function claim(string memory machineId) public nonReentrant {
         address stakeholder = msg.sender;
