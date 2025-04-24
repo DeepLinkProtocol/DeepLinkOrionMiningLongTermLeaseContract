@@ -200,6 +200,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(msg.sender == canUpgradeAddress, CanNotUpgrade(msg.sender));
     }
 
+    function setOracle(address addr) external onlyOwner  {
+        oracle = IOracle(addr);
+    }
+
     function setAdminsToApproveMachineFaultReporting(address[] calldata admins) external onlyOwner {
         require(admins.length == 5, CountOfApproveAdminsShouldBeFive());
         adminsToApprove = admins;
