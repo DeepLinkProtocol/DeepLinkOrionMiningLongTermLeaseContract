@@ -88,6 +88,8 @@ contract NFTStaking is
 
     uint256 public rewardPerShareAtRewardStart;
 
+    mapping(string => address) public machineId2RewardReceiver;
+
     event Staked(
         address indexed stakeholder,
         string machineId,
@@ -118,8 +120,16 @@ contract NFTStaking is
     event DepositReward(uint256 amount);
     event MoveToReserveAmount(string machineId, address holder, uint256 amount);
     event RenewRent(string machineId, address holder, uint256 rentFee);
-
+    event SetRewardReceiver(string machineId, address indexed stakeholder, address indexed receiver);
+    event AddedNFTsToStake(
+        address indexed stakeholder,
+        string machineId,
+        uint256[] nftTokenIds,
+        uint256[] nftTokenIdBalances,
+        uint256 newCalcPoint
+    );
     // error
+
     error CallerNotRentContract();
     error ZeroAddress();
     error AddressExists();
@@ -144,6 +154,7 @@ contract NFTStaking is
     error MachineIsStakingInShortTerm();
     error RentTimeMustGreaterThan50Days();
     error StakingNotEnd();
+    error ShouldPaySlashBeforeStake();
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -276,7 +287,7 @@ contract NFTStaking is
         ApprovedReportInfo[] memory approvedReportInfos = pendingSlashedMachineId2Renter[machineId];
         if (approvedReportInfos.length > 0) {
             require(
-                amount >= BASE_RESERVE_AMOUNT * approvedReportInfos.length,
+                amount == BASE_RESERVE_AMOUNT * approvedReportInfos.length,
                 StakeAmountLessThanReserve(machineId, amount)
             );
             for (uint8 i = 0; i < approvedReportInfos.length; i++) {
@@ -303,11 +314,13 @@ contract NFTStaking is
         string calldata machineId,
         uint256[] calldata nftTokenIds,
         uint256[] calldata nftTokenIdBalances,
-        uint256 rentId
+        uint256 rentId,
+        address rewardReceiver
     ) external nonReentrant {
         if (shortStakeContractAddress != address(0)) {
             require(!IShortStakeContract(shortStakeContractAddress).isStaking(machineId), MachineIsStakingInShortTerm());
         }
+        require(pendingSlashedMachineId2Renter[machineId].length == 0, ShouldPaySlashBeforeStake());
         require(
             nftTokenIds.length == nftTokenIdBalances.length,
             InvalidNFTLength(nftTokenIds.length, nftTokenIdBalances.length)
@@ -342,12 +355,12 @@ contract NFTStaking is
             totalGpuCount += gpuCount;
         }
         totalStakingGpuCount += gpuCount;
-
         if (totalGpuCount >= rewardStartGPUThreshold && rewardStartAtTimestamp == 0) {
             rewardStartAtTimestamp = currentTime;
             rewardStartAtBlockNumber = block.number;
             rewardPerShareAtRewardStart = rewardsPerCalcPoint.accumulatedPerShare;
         }
+        //        machineId2StakeUnitRewards[machineId].lastAccumulatedPerShare = rewardsPerCalcPoint.accumulatedPerShare;
 
         nftToken.safeBatchTransferFrom(stakeholder, address(this), nftTokenIds, nftTokenIdBalances, "transfer");
         machineId2StakeInfos[machineId] = StakeInfo({
@@ -366,6 +379,10 @@ contract NFTStaking is
             nextRenterCanRentAt: currentTime,
             rentId: rentId
         });
+
+        if (rewardReceiver != address(0)) {
+            machineId2RewardReceiver[machineId] = rewardReceiver;
+        }
 
         bool found = gpuTypeSet[gpuType];
         if (!found) {
@@ -389,40 +406,59 @@ contract NFTStaking is
         emit Staked(stakeholder, machineId, originCalcPoint, calcPoint, gpuType, rentEntTime);
     }
 
-    function canStake(address stakeholder,string memory machineId, uint256 rentId) public view returns(bool canStake, string memory reason) {
-        if (precompileContract.getMachineGPUCount(machineId) != 1){
-            return (false, "machine has more than one gpu");
-        }
-        if (!precompileContract.isMachineOwner(machineId, stakeholder)){
-            return (false, "not machine owner");
-        }
-        if (precompileContract.getMachineCalcPoint(machineId) == 0){
-            return (false, "machine calc point is zero");
+    function addNFTsToStake(
+        string calldata machineId,
+        uint256[] calldata nftTokenIds,
+        uint256[] calldata nftTokenIdBalances
+    ) external nonReentrant {
+        require(
+            nftTokenIds.length == nftTokenIdBalances.length,
+            InvalidNFTLength(nftTokenIds.length, nftTokenIdBalances.length)
+        );
+        require(nftTokenIds.length > 0, ZeroNFTTokenIds());
+
+        StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
+        require(stakeInfo.holder == msg.sender, NotStakeHolder(machineId, msg.sender));
+        require(isStaking(machineId), MachineNotStaked(machineId));
+
+        uint256 additionalNFTCount = getNFTCount(nftTokenIdBalances);
+
+        require(stakeInfo.nftCount + additionalNFTCount <= MAX_NFTS_PER_MACHINE, NFTCountGreaterThan20());
+
+        nftToken.safeBatchTransferFrom(msg.sender, address(this), nftTokenIds, nftTokenIdBalances, "transfer");
+
+        uint256 baseCalcPoint = stakeInfo.calcPoint / stakeInfo.nftCount;
+        uint256 newNFTCount = stakeInfo.nftCount + additionalNFTCount;
+        uint256 newCalcPoint = baseCalcPoint * newNFTCount;
+
+        // merge nfts
+        uint256[] memory newNftTokenIds = new uint256[](stakeInfo.nftTokenIds.length + nftTokenIds.length);
+        uint256[] memory newNftTokenIdBalances =
+            new uint256[](stakeInfo.tokenIdBalances.length + nftTokenIdBalances.length);
+
+        for (uint256 i = 0; i < stakeInfo.nftTokenIds.length; i++) {
+            newNftTokenIds[i] = stakeInfo.nftTokenIds[i];
+            newNftTokenIdBalances[i] = stakeInfo.tokenIdBalances[i];
         }
 
-        if (isStaking(machineId)){
-            return (false, "machine is staking");
+        for (uint256 i = 0; i < nftTokenIds.length; i++) {
+            newNftTokenIds[stakeInfo.nftTokenIds.length + i] = nftTokenIds[i];
+            newNftTokenIdBalances[stakeInfo.tokenIdBalances.length + i] = nftTokenIdBalances[i];
         }
 
-        (string memory gpuType, uint256 mem) = precompileContract.getMachineGPUTypeAndMem(machineId);
-        if (mem < 16){
-            return (false, "machine memory is less than 16G");
-        }
-        if (!ToolLib.checkString(gpuType)){
-            return (false, "machine gpu type is not match");
-        }
+        // claim rewards first
+        _claim(machineId);
 
-        if (shortStakeContractAddress != address(0)) {
-            if (IShortStakeContract(shortStakeContractAddress).isStaking(machineId)){
-                return (false, "machine is staking in short term");
-            }
-        }
+        // update staking info
+        stakeInfo.nftTokenIds = newNftTokenIds;
+        stakeInfo.tokenIdBalances = newNftTokenIdBalances;
+        stakeInfo.nftCount = newNFTCount;
 
-        uint256 rentEndAt = precompileContract.getOwnerRentEndAt(machineId, rentId);
-        if ((rentEndAt - block.number) * SECONDS_PER_BLOCK < 10 days){
-            return (false, "rent time is less than 10 days");
-        }
-        return (true, "");
+        // update calcPoint
+        _joinStaking(machineId, newCalcPoint, stakeInfo.reservedAmount);
+        // NFTStakingState.addOrUpdateStakeHolder(stakeInfo.holder, machineId, newCalcPoint, stakeInfo.gpuCount, false);
+
+        emit AddedNFTsToStake(msg.sender, machineId, nftTokenIds, nftTokenIdBalances, newCalcPoint);
     }
 
     function stake1(
@@ -503,6 +539,7 @@ contract NFTStaking is
                 claimedAmount: 0
             });
         }
+        NFTStakingState.addOrUpdateStakeHolder(stakeholder, machineId, calcPoint, gpuCount, true);
         holder2MachineIds[stakeholder].push(machineId);
         uint256 rentEntTime = (rentEndAt - block.number) * SECONDS_PER_BLOCK;
         if (rewardStart()) {
@@ -556,6 +593,12 @@ contract NFTStaking is
         _updateMachineRewards(machineId, machineShares);
 
         address stakeholder = stakeInfo.holder;
+
+        address rewardReceiver = machineId2RewardReceiver[machineId];
+        if (rewardReceiver == address(0)) {
+            rewardReceiver = stakeholder;
+        }
+
         uint256 currentTimestamp = block.timestamp;
 
         bool _isStaking = isStaking(machineId);
@@ -597,7 +640,7 @@ contract NFTStaking is
         }
 
         if (canClaimAmount > 0) {
-            rewardToken.transfer(stakeholder, canClaimAmount);
+            rewardToken.transfer(rewardReceiver, canClaimAmount);
         }
 
         uint256 totalRewardAmount = canClaimAmount + moveToReserveAmount;
@@ -638,12 +681,12 @@ contract NFTStaking is
         return (availableRewardAmount, canClaimAmount, lockedAmount, claimedAmount);
     }
 
-    function claimAll() external nonReentrant {
-        string[] memory machineIds = holder2MachineIds[msg.sender];
-        for (uint256 i = 0; i < machineIds.length; i++) {
-            claim(machineIds[i]);
-        }
-    }
+//    function claimAll() external nonReentrant {
+//        string[] memory machineIds = holder2MachineIds[msg.sender];
+//        for (uint256 i = 0; i < machineIds.length; i++) {
+//            claim(machineIds[i]);
+//        }
+//    }
 
     function claim(string memory machineId) public nonReentrant {
         address stakeholder = msg.sender;
@@ -696,8 +739,13 @@ contract NFTStaking is
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         uint256 reservedAmount = stakeInfo.reservedAmount;
 
+        address rewardReceiver = machineId2RewardReceiver[machineId];
+        if (rewardReceiver == address(0)) {
+            rewardReceiver = stakeholder;
+        }
+
         if (reservedAmount > 0) {
-            rewardToken.transfer(stakeholder, reservedAmount);
+            rewardToken.transfer(rewardReceiver, reservedAmount);
             stakeInfo.reservedAmount = 0;
             totalReservedAmount = totalReservedAmount > reservedAmount ? totalReservedAmount - reservedAmount : 0;
         }
@@ -715,7 +763,8 @@ contract NFTStaking is
             totalStakingGpuCount -= 1;
         }
         removeStakingMachineFromHolder(stakeholder, machineId);
-        NFTStakingState.removeMachine(stakeInfo.holder, machineId);
+
+        delete machineId2RewardReceiver[machineId];
         emit Unstaked(stakeholder, machineId, reservedAmount);
     }
 
@@ -735,6 +784,10 @@ contract NFTStaking is
         return stakeInfo.holder;
     }
 
+    function getMachineStakeInfo(string calldata machineId) public view returns (StakeInfo memory) {
+        return machineId2StakeInfos[machineId];
+    }
+
     function isStaking(string memory machineId) public view returns (bool) {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
         bool _isStaking =
@@ -742,6 +795,24 @@ contract NFTStaking is
 
         return _isStaking;
     }
+
+    //    function addNFTs(string calldata machineId, uint256[] calldata nftTokenIds) external {
+    //        StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
+    //        uint256 oldNftCount = stakeInfo.nftTokenIds.length;
+    //        require(stakeInfo.holder == msg.sender, "not stakeholder");
+    //        require(oldNftCount + nftTokenIds.length <= MAX_NFTS_PER_MACHINE, "too many nfts, max is 50");
+    //        for (uint256 i = 0; i < nftTokenIds.length; i++) {
+    //            uint256 tokenID = nftTokenIds[i];
+    //            nftToken.transferFrom(msg.sender, address(this), tokenID);
+    //            stakeInfo.nftTokenIds.push(tokenID);
+    //        }
+    //
+    //        uint256 newCalcPoint = stakeInfo.calcPoint / oldNftCount * stakeInfo.nftTokenIds.length;
+    //        joinStaking(machineId, newCalcPoint, stakeInfo.reservedAmount);
+    //
+    //        stateContract.addOrUpdateStakeHolder(stakeInfo.holder, machineId, stakeInfo.calcPoint, 0, 0, false);
+    //        emit AddNFTs(machineId, nftTokenIds);
+    //    }
 
     function rentMachine(string calldata machineId, uint256 rentFee) external onlyRentContract {
         StakeInfo storage stakeInfo = machineId2StakeInfos[machineId];
@@ -877,6 +948,14 @@ contract NFTStaking is
         return (totalCalcPoint, totalReservedAmount, rewardStartAtTimestamp + REWARD_DURATION);
     }
 
+    function getRewardReceiver(string memory machineId) external view returns (address) {
+        address receiver = machineId2RewardReceiver[machineId];
+        if (receiver == address(0)) {
+            return machineId2StakeInfos[machineId].holder;
+        }
+        return receiver;
+    }
+
     function _updateRewardPerCalcPoint() internal {
         uint256 accumulatedPerShareBefore = rewardsPerCalcPoint.accumulatedPerShare;
         rewardsPerCalcPoint = _getUpdatedRewardPerCalcPoint();
@@ -985,9 +1064,9 @@ contract NFTStaking is
         RewardCalculatorLib.UserRewards memory machineRewards = machineId2StakeUnitRewards[machineId];
         uint256 v = machineRewards.lastAccumulatedPerShare;
         if (machineRewards.lastAccumulatedPerShare == 0) {
-            if (stakeInfo.startAtTimestamp < rewardStartAtTimestamp && stakeInfo.claimedAmount == 0){
+            if (stakeInfo.startAtTimestamp < rewardStartAtTimestamp && stakeInfo.claimedAmount == 0) {
                 v = rewardPerShareAtRewardStart;
-            }else{
+            } else {
                 v = rewardsPerCalcPoint.accumulatedPerShare;
             }
         }
@@ -1052,7 +1131,7 @@ contract NFTStaking is
         uint256 elapsed = 1 days;
         uint256 rewardsRate = (getDailyRewardAmount()) / 1 days;
 
-        uint256 accumulatedPerShare = currentAccumulatedPerShare + (1 ether * elapsed * rewardsRate) / totalShares;
+        uint256 accumulatedPerShare = currentAccumulatedPerShare + 1 ether * elapsed * rewardsRate / totalShares;
 
         return accumulatedPerShare;
     }
