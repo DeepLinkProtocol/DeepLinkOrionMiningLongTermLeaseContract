@@ -298,7 +298,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 totalFactor = FACTOR * FACTOR;
         // 0.005U
         uint256 dlcUSDPrice = oracle.getTokenPriceInUSD(10, address(feeToken));
-        uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact * ONE_CALC_POINT_USD_VALUE_PER_MONTH / 30 / 24
+        uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact*100 * ONE_CALC_POINT_USD_VALUE_PER_MONTH / 30 / 24
             / 60 / 60 / totalFactor;
         return 1e18 * rentFeeUSD / dlcUSDPrice;
     }
