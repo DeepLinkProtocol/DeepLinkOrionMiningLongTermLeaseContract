@@ -17,7 +17,7 @@ import {
 import {
   StateSummary,
   StakeHolder,
-  MachineInfo, GpuTypeValue
+  MachineInfo, GpuTypeValue, AddStakeHour
 
 } from "../generated/schema"
 
@@ -311,6 +311,9 @@ export function handleUnstaked(event: UnstakedEvent): void {
   if (machineInfo == null) {
     return
   }
+  if (!machineInfo.isStaking){
+    return
+  }
 
   let stakeholder = StakeHolder.load(Bytes.fromHexString(event.params.stakeholder.toHexString()))
   if (stakeholder == null) {
@@ -349,7 +352,7 @@ export function handleUnstaked(event: UnstakedEvent): void {
   if (gpuTypeValue == null) {
     return
   }
-  if (gpuTypeValue.count.toU32() >=1){
+  if (gpuTypeValue.count.toU32() >= 1){
     gpuTypeValue.count = gpuTypeValue.count.minus(BigInt.fromI32(1))
     gpuTypeValue.save()
   }
@@ -362,9 +365,20 @@ export function handleAddStakeHours(event: AddedStakeHoursEvent): void {
     return
   }
 
+  let _id = Bytes.fromUTF8(event.transaction.hash.toHexString());
+  let v = new AddStakeHour(_id);
+  v.machineId = event.params.machineId
+  v.blockTimestamp = event.block.timestamp
+  v.transactionHash = event.transaction.hash
+  v.seconds = event.params.stakeHours.times(BigInt.fromI32(3600))
+  v.endTimestampBefore = machineInfo.stakeEndTimestamp
+  v.save()
+
   machineInfo.stakeEndTimestamp = machineInfo.stakeEndTimestamp.plus(event.params.stakeHours.times(BigInt.fromI32(3600)))
   machineInfo.stakeEndTime = new Date(machineInfo.stakeEndTimestamp.toU64() * 1000).toISOString();
   machineInfo.save()
+
+
 }
 
 export function handleRenewRent(event: RenewRentEvent): void {

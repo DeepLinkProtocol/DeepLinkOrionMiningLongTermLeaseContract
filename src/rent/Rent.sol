@@ -159,6 +159,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
     error ReportedMachineNotFound();
     error VoteFinished();
     error RewardNotStart();
+    error RenTimeCannotOverMachineUnstakeTime();
 
     modifier onlyApproveAdmins() {
         bool found = false;
@@ -200,7 +201,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(msg.sender == canUpgradeAddress, CanNotUpgrade(msg.sender));
     }
 
-    function setOracle(address addr) external onlyOwner  {
+    function setOracle(address addr) external onlyOwner {
         oracle = IOracle(addr);
     }
 
@@ -298,8 +299,8 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         uint256 totalFactor = FACTOR * FACTOR;
         // 0.005U
         uint256 dlcUSDPrice = oracle.getTokenPriceInUSD(10, address(feeToken));
-        uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact*100 * ONE_CALC_POINT_USD_VALUE_PER_MONTH / 30 / 24
-            / 60 / 60 / totalFactor;
+        uint256 rentFeeUSD = USD_DECIMALS * rentSeconds * calcPointInFact * 100 * ONE_CALC_POINT_USD_VALUE_PER_MONTH
+            / 30 / 24 / 60 / 60 / totalFactor;
         return 1e18 * rentFeeUSD / dlcUSDPrice;
     }
 
@@ -312,6 +313,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         require(rewardEndAt > 60 days, RewardNotStart());
+        require(block.timestamp + rentSeconds < endAtTimestamp, RenTimeCannotOverMachineUnstakeTime());
 
         uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
 
@@ -381,12 +383,17 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         require(additionalRentSeconds >= 10 minutes, InvalidRentDuration(additionalRentSeconds));
 
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
+        require(
+            rentId2RentInfo[rentId].rentEndTime + additionalRentSeconds < endAtTimestamp,
+            RenTimeCannotOverMachineUnstakeTime()
+        );
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         uint256 maxRentDuration;
         if (rewardEndAt == 60 days) {
             maxRentDuration = Math.min(endAtTimestamp - block.timestamp, 60 days);
         } else {
-            maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
+            maxRentDuration =
+                Math.min(Math.min(endAtTimestamp, rewardEndAt) - rentId2RentInfo[rentId].rentEndTime, 60 days);
         }
         uint256 newRentDuration = rentId2RentInfo[rentId].rentEndTime - block.timestamp + additionalRentSeconds;
         require(additionalRentSeconds <= maxRentDuration, RentDurationTooLong(newRentDuration, maxRentDuration));

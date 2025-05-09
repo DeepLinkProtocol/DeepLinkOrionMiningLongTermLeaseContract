@@ -41,6 +41,5 @@ deploy-staking-bsc-testnet:
 	source .env && forge script script/Deploy.s.sol:Deploy --rpc-url dbc-testnet --private-key $PRIVATE_KEY --broadcast --verify --verifier blockscout --verifier-url $BSC_TESTNET_VERIFIER_URL --force --skip-simulation
 
 	forge verify-contract --chain bsc --verifier blockscout --verifier-url https://api-testnet.bscscan.com/api --compiler-version 0.8.26 0x7fdc6ed8387f3184de77e0cf6d6f3b361f906c21 src/NFTStaking.sol:NFTStaking
-665adc9580c2086b3cfe81d1e470e4db574211c5f7ddaf64e4e833b034e2cf47
 
 	source .env && forge script script/Deploy.s.sol:Deploy --rpc-url dbc-mainnet --private-key $PRIVATE_KEY --broadcast --verify --verifier blockscout --verifier-url $MAIN_NET_VERIFIER_URL --force --skip-simulation --legacy

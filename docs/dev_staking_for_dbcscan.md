@@ -55,6 +55,13 @@ deeplink长租竞赛质押合约是用于管理 NFT 质押的智能合约。它�
   - `nftTokenIdBalances`: NFT Token ID 数量数组
 - 返回值：无
 
+### `function addStakeHours(address holder, string[] calldata machineIds, uint256[] calldata additionHoursList) external`
+- 描述：续租
+- 参数：
+  - `holder`: 质押人地址
+  - `machineIds`: 要续租的机器id列表
+  - `additionHoursList`: 续租时间列表 单位为小时
+- 返回值：无
 
 
 ## 全局变量
