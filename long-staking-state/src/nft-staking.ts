@@ -40,7 +40,7 @@ export function handleClaimed(event: ClaimedEvent): void {
     return
   }
 
-  stakeholder.totalReleasedRewardAmount = stakeholder.totalReleasedRewardAmount.plus(event.params.moveToUserWalletAmount)
+  stakeholder.totalReleasedRewardAmount = stakeholder.totalReleasedRewardAmount.plus(event.params.moveToUserWalletAmount.plus(event.params.moveToReservedAmount))
   stakeholder.totalClaimedRewardAmount = stakeholder.totalClaimedRewardAmount.plus(event.params.totalRewardAmount)
   // stakeholder.totalReservedAmount = stakeholder.totalReservedAmount.plus(event.params.moveToReservedAmount)
   stakeholder.save()
@@ -359,13 +359,16 @@ export function handleUnstaked(event: UnstakedEvent): void {
 }
 
 export function handleAddStakeHours(event: AddedStakeHoursEvent): void {
+  if (event.params.stakeHours.equals(BigInt.fromI32(0))||event.params.stakeHours.gt(BigInt.fromI32(24*60)) ){
+    return
+  }
   let id = Bytes.fromUTF8(event.params.machineId.toString());
   let machineInfo = MachineInfo.load(id)
   if (machineInfo == null) {
     return
   }
 
-  let _id = Bytes.fromUTF8(event.transaction.hash.toHexString());
+  let _id = Bytes.fromUTF8(event.transaction.hash.toHexString() + "-" + event.logIndex.toString());
   let v = new AddStakeHour(_id);
   v.machineId = event.params.machineId
   v.blockTimestamp = event.block.timestamp
@@ -377,8 +380,6 @@ export function handleAddStakeHours(event: AddedStakeHoursEvent): void {
   machineInfo.stakeEndTimestamp = machineInfo.stakeEndTimestamp.plus(event.params.stakeHours.times(BigInt.fromI32(3600)))
   machineInfo.stakeEndTime = new Date(machineInfo.stakeEndTimestamp.toU64() * 1000).toISOString();
   machineInfo.save()
-
-
 }
 
 export function handleRenewRent(event: RenewRentEvent): void {

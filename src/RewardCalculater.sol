@@ -132,12 +132,12 @@ contract RewardCalculator {
         // Calculate linear unlock with overflow protection
         uint256 timeElapsed = block.timestamp - lockedRewardDetail.lockTime;
         uint256 totalUnlocked = (timeElapsed * lockedRewardDetail.totalAmount) / LOCK_PERIOD;
-        
+
         // Ensure we don't release more than total amount
         if (totalUnlocked > lockedRewardDetail.totalAmount) {
             totalUnlocked = lockedRewardDetail.totalAmount;
         }
-        
+
         releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
         lockedRewardDetail.claimedAmount += releaseAmount;
         return (releaseAmount, lockedRewardDetail.totalAmount - totalUnlocked);

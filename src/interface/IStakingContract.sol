@@ -24,4 +24,5 @@ interface IStakingContract {
 
     function setBurnedRentFee(address _holder, string memory _machineId, uint256 fee) external;
     function addRentedGPUCount(address _holder, string memory _machineId) external;
+    function getRewardDuration() external view returns (uint256);
 }

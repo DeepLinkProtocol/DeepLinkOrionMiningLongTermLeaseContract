@@ -270,7 +270,7 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         }
 
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
-        if (rewardEndAt == 60 days) {
+        if (rewardEndAt == stakingContract.getRewardDuration()) {
             return false;
         }
 
@@ -312,10 +312,10 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
 
         (address machineHolder,,, uint256 endAtTimestamp,,) = stakingContract.getMachineInfo(machineId);
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
-        require(rewardEndAt > 60 days, RewardNotStart());
+        require(rewardEndAt > stakingContract.getRewardDuration(), RewardNotStart());
         require(block.timestamp + rentSeconds < endAtTimestamp, RenTimeCannotOverMachineUnstakeTime());
 
-        uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, 60 days);
+        uint256 maxRentDuration = Math.min(Math.min(endAtTimestamp, rewardEndAt) - block.timestamp, stakingContract.getRewardDuration());
 
         require(rentSeconds <= maxRentDuration, RentDurationTooLong(rentSeconds, maxRentDuration));
 
@@ -389,11 +389,12 @@ contract Rent is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         );
         (,, uint256 rewardEndAt) = stakingContract.getGlobalState();
         uint256 maxRentDuration;
-        if (rewardEndAt == 60 days) {
-            maxRentDuration = Math.min(endAtTimestamp - block.timestamp, 60 days);
+        uint256 rewardDuration = stakingContract.getRewardDuration();
+        if (rewardEndAt == rewardDuration) {
+            maxRentDuration = Math.min(endAtTimestamp - block.timestamp, rewardDuration);
         } else {
             maxRentDuration =
-                Math.min(Math.min(endAtTimestamp, rewardEndAt) - rentId2RentInfo[rentId].rentEndTime, 60 days);
+                Math.min(Math.min(endAtTimestamp, rewardEndAt) - rentId2RentInfo[rentId].rentEndTime, rewardDuration );
         }
         uint256 newRentDuration = rentId2RentInfo[rentId].rentEndTime - block.timestamp + additionalRentSeconds;
         require(additionalRentSeconds <= maxRentDuration, RentDurationTooLong(newRentDuration, maxRentDuration));
