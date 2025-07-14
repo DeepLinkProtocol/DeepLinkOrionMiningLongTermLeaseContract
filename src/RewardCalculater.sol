@@ -117,17 +117,30 @@ contract RewardCalculator {
             return (0, 0);
         }
 
-        if (block.timestamp > lockedRewardDetail.unlockTime) {
+        // Check if before lock time
+        if (block.timestamp < lockedRewardDetail.lockTime) {
+            return (0, lockedRewardDetail.totalAmount);
+        }
+
+        // Check if after or at unlock time
+        if (block.timestamp >= lockedRewardDetail.unlockTime) {
             releaseAmount = lockedRewardDetail.totalAmount - lockedRewardDetail.claimedAmount;
             lockedRewardDetail.claimedAmount = lockedRewardDetail.totalAmount;
             return (releaseAmount, 0);
         }
 
-        uint256 totalUnlocked =
-            (block.timestamp - lockedRewardDetail.lockTime) * lockedRewardDetail.totalAmount / LOCK_PERIOD;
+        // Calculate linear unlock with overflow protection
+        uint256 timeElapsed = block.timestamp - lockedRewardDetail.lockTime;
+        uint256 totalUnlocked = (timeElapsed * lockedRewardDetail.totalAmount) / LOCK_PERIOD;
+
+        // Ensure we don't release more than total amount
+        if (totalUnlocked > lockedRewardDetail.totalAmount) {
+            totalUnlocked = lockedRewardDetail.totalAmount;
+        }
+
         releaseAmount = totalUnlocked - lockedRewardDetail.claimedAmount;
         lockedRewardDetail.claimedAmount += releaseAmount;
-        return (releaseAmount, lockedRewardDetail.totalAmount - releaseAmount);
+        return (releaseAmount, lockedRewardDetail.totalAmount - totalUnlocked);
     }
 
     function rewardStart() internal view returns (bool) {

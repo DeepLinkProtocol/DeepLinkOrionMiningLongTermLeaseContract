@@ -15,7 +15,7 @@
     "deploy-testnet": "graph deploy long-staking-state --ipfs http://8.214.55.62:8021 --node http://8.214.55.62:8020",
 
     "create-mainnet": "graph create long-staking-state --node http://54.179.233.88:8034",
-    "deploy-mainnet": "graph deploy long-staking-state --ipfs http://54.179.233.88:8031 --node http://54.179.233.88:8034"
+    "deploy-mainnet": "graph deploy long-staking-state1 --ipfs http://54.179.233.88:8031 --node http://54.179.233.88:8034"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "0.96.0",

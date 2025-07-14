@@ -62,3 +62,13 @@ type GpuTypeValue @entity {
   value: String!
   count: BigInt! # uint256
 }
+
+
+type AddStakeHour @entity {
+  id: Bytes!
+  machineId: String!
+  seconds: BigInt! # uint256
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+  endTimestampBefore: BigInt! # uint256
+}

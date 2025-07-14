@@ -332,13 +332,10 @@ contract StakingTest is Test {
         uint256 totalCalcPoint = nftStaking.totalCalcPoint();
         uint256 dailyReward = nftStaking.getDailyRewardAmount();
         uint256 expectedReward = (dailyReward * updatedStakeInfo.calcPoint) / totalCalcPoint;
-        
+
         // Allow 1% error margin
         assertApproxEqRel(
-            newReward,
-            expectedReward,
-            0.01e18,
-            "new reward should match the expected reward based on calcPoint ratio"
+            newReward, expectedReward, 0.01e18, "new reward should match the expected reward based on calcPoint ratio"
         );
     }
 
@@ -356,12 +353,12 @@ contract StakingTest is Test {
         uint256[] memory newNftTokenBalances = new uint256[](1);
         newNftTokenIds[0] = 2;
         newNftTokenBalances[0] = 1;
-        
+
         // Provide and approve new NFT
         dealERC1155(address(nftToken), stakeHolder, 2, 1, false);
         vm.startPrank(stakeHolder);
         nftToken.setApprovalForAll(address(nftStaking), true);
-        
+
         // Add NFT to stake
         nftStaking.addNFTsToStake(machineId, newNftTokenIds, newNftTokenBalances);
         vm.stopPrank();
@@ -717,78 +714,72 @@ contract StakingTest is Test {
         address stakeHolder = owner;
         string memory machineIdA = "machineIdForRewardA";
         string memory machineIdB = "machineIdForRewardB";
-        
+
         // Stake both machines
         stakeByOwner(machineIdA, 0, 480, stakeHolder);
         stakeByOwner(machineIdB, 0, 480, stakeHolder2);
-        
+
         // Wait for rewards to accumulate
         passDays(1);
-        
+
         // Record initial rewards for machine A
         uint256 initialRewardA = nftStaking.getReward(machineIdA);
         assertGt(initialRewardA, 0, "Machine A should have initial rewards");
-        
+
         // Record initial rewards for machine B
         uint256 initialRewardB = nftStaking.getReward(machineIdB);
         assertGt(initialRewardB, 0, "Machine B should have initial rewards");
-        
+
         // Claim rewards for machine B before adding NFT to machine A
         vm.prank(stakeHolder2);
         nftStaking.claim(machineIdB);
-        
+
         // Print reward increase
         // Prepare additional NFT for machine A
         uint256[] memory newNftTokenIds = new uint256[](1);
         uint256[] memory newNftTokenBalances = new uint256[](1);
         newNftTokenIds[0] = 2;
         newNftTokenBalances[0] = 1;
-        
+
         // Provide and approve new NFT
         dealERC1155(address(nftToken), stakeHolder, 2, 1, false);
         vm.startPrank(stakeHolder);
         nftToken.setApprovalForAll(address(nftStaking), true);
-        
+
         // Add NFT to machine A
         nftStaking.addNFTsToStake(machineIdA, newNftTokenIds, newNftTokenBalances);
         vm.stopPrank();
-        
+
         // Wait for new rewards to accumulate
         passDays(1);
-        
+
         // Get new rewards
         uint256 newRewardA = nftStaking.getReward(machineIdA);
         uint256 newRewardB = nftStaking.getReward(machineIdB);
-        
+
         // 打印奖励增加情况
         console.log("Machine A initial reward:", initialRewardA);
         console.log("Machine A new reward:", newRewardA);
         console.log("Machine A reward increase:", newRewardA - initialRewardA);
         console.log("Machine A reward increase percentage:", (newRewardA * 100) / initialRewardA, "%");
-        
+
         console.log("Machine B initial reward:", initialRewardB);
         console.log("Machine B new reward:", newRewardB);
         console.log("Machine B reward decrease:", initialRewardB - newRewardB);
         console.log("Machine B reward decrease percentage:", (newRewardB * 100) / initialRewardB, "%");
-        
+
         // Verify machine A's reward increased
         assertGt(newRewardA, initialRewardA, "Machine A's reward should increase after adding NFT");
-        
+
         // Verify machine B's reward decreased due to increased total stake
         assertLt(newRewardB, initialRewardB, "Machine B's reward should decrease due to increased total stake");
-        
+
         // Calculate and verify the reward ratio
         uint256 totalCalcPoint = nftStaking.totalCalcPoint();
         uint256 machineACalcPoint = nftStaking.getMachineStakeInfo(machineIdA).calcPoint;
         uint256 dailyReward = nftStaking.getDailyRewardAmount();
-        
-        uint256 expectedRewardA = (dailyReward * machineACalcPoint) / totalCalcPoint;
-        assertApproxEqRel(
-            newRewardA,
-            expectedRewardA,
-            0.01e18,
-            "Machine A's reward should match expected calculation"
-        );
-    }
 
+        uint256 expectedRewardA = (dailyReward * machineACalcPoint) / totalCalcPoint;
+        assertApproxEqRel(newRewardA, expectedRewardA, 0.01e18, "Machine A's reward should match expected calculation");
+    }
 }

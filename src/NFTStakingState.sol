@@ -166,26 +166,6 @@ contract NFTStakingState {
         }
     }
 
-    function addClaimedRewardAmount(
-        address _holder,
-        string memory _machineId,
-        uint256 totalClaimedAmount,
-        uint256 releasedAmount
-    ) internal {
-        StakeHolderInfo storage stakeHolderInfo = stakeHolders[_holder];
-
-        if (stakeHolderInfo.holder == address(0)) {
-            stakeHolderInfo.holder = _holder;
-        }
-
-        MachineInfo storage previousMachineInfo = stakeHolderInfo.machineId2Info[_machineId];
-
-        previousMachineInfo.totalClaimedRewardAmount += totalClaimedAmount;
-        previousMachineInfo.releasedRewardAmount += releasedAmount;
-        stakeHolderInfo.totalClaimedRewardAmount += totalClaimedAmount;
-        stakeHolderInfo.releasedRewardAmount += releasedAmount;
-    }
-
     function addOrUpdateStakeHolder(
         address _holder,
         string memory _machineId,
@@ -271,6 +251,10 @@ contract NFTStakingState {
 
     function getHolderMachineIds(address _holder) external view returns (string[] memory) {
         return stakeHolders[_holder].machineIds;
+    }
+
+    function getHolderMachinesCount(address _holder) external view returns (uint256) {
+        return stakeHolders[_holder].machineIds.length;
     }
 
     function getTopStakeHolders(uint256 offset, uint256 limit)

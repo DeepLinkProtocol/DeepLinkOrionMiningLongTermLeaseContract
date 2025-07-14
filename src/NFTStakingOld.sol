@@ -449,9 +449,7 @@ contract OldNFTStaking is
         totalDistributedRewardAmount += totalRewardAmount;
         stakeInfo.claimedAmount += totalRewardAmount;
         stakeInfo.lastClaimAtTimestamp = currentTimestamp;
-        NFTStakingState.addClaimedRewardAmount(
-            msg.sender, machineId, rewardAmount + _dailyReleaseAmount, totalRewardAmount
-        );
+
 
         if (lockedAmount > 0) {
             machineId2LockedRewardDetail[machineId].totalAmount += lockedAmount;
