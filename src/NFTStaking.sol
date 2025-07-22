@@ -300,10 +300,10 @@ contract NFTStaking is
             initRewardAmount = 360_000_000 ether;
         }
         if (phase == 2) {
-            initRewardAmount = 480_000_000 ether;
+            initRewardAmount = 360_000_000 ether + 480_000_000  ether;
         }
         if (phase == 3) {
-            initRewardAmount = 116_000_000 ether;
+            initRewardAmount = 360_000_000 ether + 480_000_000  ether + 116_000_000 ether;
         }
 
         dailyRewardAmount = initRewardAmount / 60;
